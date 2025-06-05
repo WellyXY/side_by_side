@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pika 視頻品質評測平台</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Pika Video Quality Evaluation Platform</h1>
+            <p>Compare video quality between Pika 2.2 and Pika 2.5</p>
+            <nav class="header-nav">
+                <a href="experiment-manager.html" class="nav-btn">實驗管理</a>
+                <span id="currentExperimentName" class="current-experiment"></span>
+            </nav>
+        </header>
+
+        <div class="progress-bar">
+            <div class="progress" id="progress"></div>
+            <span class="progress-text" id="progressText">0 / 0</span>
+        </div>
+
+        <div class="rating-controls">
+            <div class="rating-question">
+                <h3>Which video has better quality?</h3>
+            </div>
+                            <div class="rating-buttons">
+                    <button class="rating-btn" data-score="2">&gt;&gt;</button>
+                    <button class="rating-btn" data-score="1">&gt;</button>
+                    <button class="rating-btn" data-score="0">=</button>
+                    <button class="rating-btn" data-score="-1">&lt;</button>
+                    <button class="rating-btn" data-score="-2">&lt;&lt;</button>
+                </div>
+        </div>
+
+        <div class="prompt-section">
+            <div class="prompt-label">Prompt:</div>
+            <div class="prompt-text" id="promptText">Loading...</div>
+        </div>
+
+        <div class="video-comparison" id="videoComparison">
+            <div class="video-container">
+                <div class="video-header">Left Video</div>
+                <video id="leftVideo" controls muted autoplay loop>
+                    <source src="" type="video/mp4">
+                    Your browser does not support video playback.
+                </video>
+                <div class="video-label" id="leftLabel">Unknown Version</div>
+            </div>
+
+            <div class="video-container">
+                <div class="video-header">Right Video</div>
+                <video id="rightVideo" controls muted autoplay loop>
+                    <source src="" type="video/mp4">
+                    Your browser does not support video playback.
+                </video>
+                <div class="video-label" id="rightLabel">Unknown Version</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button id="prevBtn" class="nav-btn" disabled>Previous</button>
+            <button id="nextBtn" class="nav-btn" disabled>Next</button>
+            <button id="exportBtn" class="export-btn">Export Results</button>
+        </div>
+
+        <div class="stats">
+            <div class="stat-item">
+                <span class="stat-label">Rated:</span>
+                <span class="stat-value" id="ratedCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Total:</span>
+                <span class="stat-value" id="totalCount">0</span>
+            </div>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Loading video pairs...</p>
+        </div>
+
+        <div class="results-summary" id="resultsSummary" style="display: none;">
+            <h2>Evaluation Results Summary</h2>
+            <div class="chart-container">
+                <canvas id="resultsChart" width="400" height="400"></canvas>
+            </div>
+            <div class="summary-stats">
+                <div class="stat-card">
+                    <h3>Total Evaluations</h3>
+                    <span id="totalEvaluations">0</span>
+                </div>
+                <div class="stat-card">
+                    <h3>Pika 2.5 Wins</h3>
+                    <span id="pika25Wins">0</span>
+                </div>
+                <div class="stat-card">
+                    <h3>Pika 2.2 Wins</h3>
+                    <span id="pika22Wins">0</span>
+                </div>
+                <div class="stat-card">
+                    <h3>Ties</h3>
+                    <span id="ties">0</span>
+                </div>
+            </div>
+            <button id="restartBtn" class="restart-btn">Start New Evaluation</button>
+        </div>
+
+        <div class="message" id="message"></div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html> 
