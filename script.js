@@ -12,12 +12,14 @@ class VideoComparison {
     async init() {
         this.showLoading(true);
         
-        // 檢查是否有當前實驗
+        // Check if there's a current experiment
         this.checkExperimentMode();
         
-        // 檢查是否直接顯示結果
+        // Check if should directly show results
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('showResults') === 'true' && this.currentExperiment) {
+            // Load video pairs first to ensure we have the data structure
+            await this.loadVideoPairs();
             this.showResults();
             this.showLoading(false);
             return;
@@ -38,9 +40,9 @@ class VideoComparison {
     async loadVideoPairs() {
         try {
             if (this.experimentMode && this.currentExperiment) {
-                // 實驗模式：使用實驗配置的配對
+                // Experiment mode: use experiment configured pairs
                 this.videoPairs = this.currentExperiment.pairs.map(pair => {
-                    // 隨機決定左右位置
+                    // Randomly decide left/right positions
                     const randomize = Math.random() < 0.5;
                     return {
                         baseName: pair.baseName,
@@ -57,7 +59,7 @@ class VideoComparison {
                     };
                 });
                 
-                // 加載已有的評分結果
+                // Load existing rating results
                 this.ratings = new Array(this.videoPairs.length).fill(null);
                 this.currentExperiment.results.forEach(result => {
                     if (result.pairIndex < this.ratings.length) {
@@ -65,13 +67,13 @@ class VideoComparison {
                     }
                 });
                 
-                // 找到第一個未評分的位置
+                // Find first unrated position
                 const nextIndex = this.ratings.findIndex(rating => rating === null);
                 this.currentPairIndex = nextIndex >= 0 ? nextIndex : 0;
                 
-                console.log(`實驗模式加載完成: ${this.videoPairs.length} 個配對`);
+                console.log(`Experiment mode loaded: ${this.videoPairs.length} pairs`);
             } else {
-                // 默認模式：Pika 2.2 vs Pika 2.5
+                // Default mode: Pika 2.2 vs Pika 2.5
                 const pika25Files = await this.getVideoFiles('Pika2.5/');
                 const pika22Files = await this.getVideoFiles('Pika2.2/');
                 this.matchVideoPairs(pika25Files, pika22Files);
@@ -84,8 +86,8 @@ class VideoComparison {
     }
 
     async getVideoFiles(folder) {
-        // 由於瀏覽器安全限制，我們無法直接讀取檔案系統
-        // 這裡我們需要手動定義檔案列表，或者使用後端API
+        // Due to browser security restrictions, we cannot directly read the file system
+        // Here we need to manually define the file list or use a backend API
         const files = {
             'Pika2.5/': [
                 '_______________________seed2418722488_share.mp4',
@@ -160,17 +162,17 @@ class VideoComparison {
     matchVideoPairs(pika25Files, pika22Files) {
         const pairs = [];
         
-        // 提取檔案名稱的主要部分（去掉seed和副檔名）
+        // Extract main part of filename (remove seed and extension)
         const getBaseName = (filename) => {
-            // 先解碼URL編碼的字符（如%20）
+            // First decode URL-encoded characters (like %20)
             let decoded = decodeURIComponent(filename);
             
-            // 去掉各種可能的後綴：seed部分、括號數字、share等
+            // Remove various possible suffixes: seed part, parentheses numbers, share etc.
             let baseName = decoded
-                .replace(/_seed\d+.*$/, '')  // 去掉從seed開始的所有內容
-                .replace(/\s*\(\d+\).*$/, '')  // 去掉括號和數字
-                .replace(/_share.*$/, '')  // 去掉share部分
-                .replace(/\.mp4$/, '')  // 去掉副檔名
+                .replace(/_seed\d+.*$/, '')  // Remove everything from seed onwards
+                .replace(/\s*\(\d+\).*$/, '')  // Remove parentheses and numbers
+                .replace(/_share.*$/, '')  // Remove share part
+                .replace(/\.mp4$/, '')  // Remove file extension
                 .trim();
             
             return baseName;
@@ -179,7 +181,7 @@ class VideoComparison {
         pika25Files.forEach(file25 => {
             const baseName25 = getBaseName(file25);
             
-            // 在 Pika 2.2 中尋找對應的檔案
+            // Find corresponding file in Pika 2.2
             const matchingFile22 = pika22Files.find(file22 => {
                 const baseName22 = getBaseName(file22);
                 return baseName25 === baseName22;
@@ -188,13 +190,13 @@ class VideoComparison {
             if (matchingFile22) {
                 const baseName22 = getBaseName(matchingFile22);
                 
-                // 調試信息：確保配對正確
-                console.log(`配對成功:`);
+                // Debug info: ensure pairing is correct
+                console.log(`Pairing successful:`);
                 console.log(`  Pika 2.5: ${file25} → baseName: "${baseName25}"`);
                 console.log(`  Pika 2.2: ${matchingFile22} → baseName: "${baseName22}"`);
-                console.log(`  配對正確: ${baseName25 === baseName22}`);
+                console.log(`  Pairing correct: ${baseName25 === baseName22}`);
                 
-                // 隨機決定左右位置
+                // Randomly decide left/right positions
                 const randomize = Math.random() < 0.5;
                 
                 pairs.push({
@@ -211,7 +213,7 @@ class VideoComparison {
                     }
                 });
             } else {
-                console.log(`未找到配對 - Pika 2.5: ${file25} → baseName: "${baseName25}"`);
+                console.log(`No pairing found - Pika 2.5: ${file25} → baseName: "${baseName25}"`);
             }
         });
 
@@ -237,22 +239,22 @@ class VideoComparison {
         // 顯示prompt信息（檔案名稱轉換為可讀的提示詞）
         promptText.textContent = this.formatPrompt(pair.baseName);
         
-        // 調試信息：在控制台顯示當前配對
-        console.log(`當前配對 #${this.currentPairIndex + 1}:`);
-        console.log(`  左側: ${pair.leftVideo.version} - ${pair.leftVideo.originalFileName}`);
-        console.log(`  右側: ${pair.rightVideo.version} - ${pair.rightVideo.originalFileName}`);
-        console.log(`  基準名稱: "${pair.baseName}"`);
+        // Debug info: display current pairing in console
+        console.log(`Current pairing #${this.currentPairIndex + 1}:`);
+        console.log(`  Left: ${pair.leftVideo.version} - ${pair.leftVideo.originalFileName}`);
+        console.log(`  Right: ${pair.rightVideo.version} - ${pair.rightVideo.originalFileName}`);
+        console.log(`  Base name: "${pair.baseName}"`);
         console.log('---');
         
-        // 在評測完成前隱藏版本資訊
+        // Hide version info before evaluation is complete
         leftLabel.textContent = 'Version A';
         rightLabel.textContent = 'Version B';
         
-        // 重設當前評分
+        // Reset current rating
         this.currentRating = this.ratings[this.currentPairIndex];
         this.updateRatingButtons();
         
-        // 確保視頻自動播放
+        // Ensure videos auto-play
         setTimeout(() => {
             leftVideo.play().catch(e => console.log('Auto-play prevented:', e));
             rightVideo.play().catch(e => console.log('Auto-play prevented:', e));
@@ -271,7 +273,7 @@ class VideoComparison {
     }
 
     updateUI() {
-        // 更新進度條
+        // Update progress bar
         const progress = document.getElementById('progress');
         const progressText = document.getElementById('progressText');
         const ratedCount = this.ratings.filter(r => r !== null).length;
@@ -281,17 +283,17 @@ class VideoComparison {
         progress.style.width = `${percentage}%`;
         progressText.textContent = `${ratedCount} / ${totalCount}`;
         
-        // 更新統計
+        // Update statistics
         document.getElementById('ratedCount').textContent = ratedCount;
         document.getElementById('totalCount').textContent = totalCount;
         
-        // 更新導航按鈕
+        // Update navigation buttons
         document.getElementById('prevBtn').disabled = this.currentPairIndex === 0;
         document.getElementById('nextBtn').disabled = this.currentPairIndex >= this.videoPairs.length - 1;
     }
 
     bindEvents() {
-        // 評分按鈕事件
+        // Rating button events
         document.querySelectorAll('.rating-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const score = parseInt(e.target.dataset.score);
@@ -299,7 +301,7 @@ class VideoComparison {
             });
         });
 
-        // 導航按鈕事件
+        // Navigation button events
         document.getElementById('prevBtn').addEventListener('click', () => {
             this.previousPair();
         });
@@ -308,24 +310,24 @@ class VideoComparison {
             this.nextPair();
         });
 
-        // 匯出按鈕事件
+        // Export button events
         document.getElementById('exportBtn').addEventListener('click', () => {
             this.exportResults();
         });
         
-        // 重新開始按鈕事件
+        // Restart button events
         document.getElementById('restartBtn').addEventListener('click', () => {
             this.restart();
         });
 
-        // 鍵盤快捷鍵
+        // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
             switch(e.key) {
-                case '1': this.setRating(2); break;  // >> 右側明顯更好
-                case '2': this.setRating(1); break;  // > 右側稍微更好
-                case '3': this.setRating(0); break;  // = 相同品質
-                case '4': this.setRating(-1); break; // < 左側稍微更好
-                case '5': this.setRating(-2); break; // << 左側明顯更好
+                case '1': this.setRating(2); break;  // >> Right significantly better
+                case '2': this.setRating(1); break;  // > Right slightly better
+                case '3': this.setRating(0); break;  // = Same quality
+                case '4': this.setRating(-1); break; // < Left slightly better
+                case '5': this.setRating(-2); break; // << Left significantly better
                 case 'ArrowLeft': this.previousPair(); break;
                 case 'ArrowRight': this.nextPair(); break;
             }
@@ -338,20 +340,20 @@ class VideoComparison {
         this.updateRatingButtons();
         this.updateUI();
         
-        // 如果是實驗模式，保存結果到實驗
+        // If in experiment mode, save result to experiment
         if (this.experimentMode && this.currentExperiment) {
             this.saveExperimentResult(score);
         }
         
-        // 顯示版本資訊
+        // Show version information
         const pair = this.videoPairs[this.currentPairIndex];
         document.getElementById('leftLabel').textContent = pair.leftVideo.version;
         document.getElementById('rightLabel').textContent = pair.rightVideo.version;
         
-        // 檢查是否所有評測都完成
+        // Check if all evaluations are complete
         const allRated = this.ratings.every(r => r !== null);
         
-        // 自動跳到下一組（延遲0.8秒）
+        // Auto jump to next pair (delay 0.8 seconds)
         setTimeout(() => {
             if (this.currentPairIndex < this.videoPairs.length - 1) {
                 this.nextPair();
@@ -394,7 +396,7 @@ class VideoComparison {
             }))
         };
 
-        // 計算統計資訊
+        // Calculate statistics
         const validRatings = this.ratings.filter(r => r !== null);
         if (validRatings.length > 0) {
             results.statistics = {
@@ -405,7 +407,7 @@ class VideoComparison {
             };
         }
 
-        // 下載JSON檔案
+        // Download JSON file
         const dataStr = JSON.stringify(results, null, 2);
         const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
         
@@ -424,12 +426,12 @@ class VideoComparison {
             return 'Untitled video generation';
         }
         
-        // 處理特殊情況：如果baseName只是下劃線開頭的話
+        // Handle special case: if baseName is just underscores
         if (baseName.startsWith('_') && baseName.replace(/_/g, '').trim() === '') {
             return 'General video generation';
         }
         
-        // 將下劃線替換為空格，並處理特殊字符
+        // Replace underscores with spaces and handle special characters
         let formatted = baseName
             .replace(/_/g, ' ')
             .replace(/,_/g, ', ')
@@ -480,31 +482,59 @@ class VideoComparison {
     }
 
     showResults() {
-        // 隱藏評測界面
+        // Hide evaluation interface
         document.getElementById('videoComparison').style.display = 'none';
         document.querySelector('.rating-controls').style.display = 'none';
         document.querySelector('.controls').style.display = 'none';
         document.querySelector('.progress-bar').style.display = 'none';
         document.querySelector('.prompt-section').style.display = 'none';
         
-        // 顯示結果界面
+        // Show results interface
         const resultsSummary = document.getElementById('resultsSummary');
         resultsSummary.style.display = 'block';
         
-        // 計算統計資訊
-        const validRatings = this.ratings.filter(r => r !== null);
-        const pika25Wins = validRatings.filter(r => r < 0).length;
-        const pika22Wins = validRatings.filter(r => r > 0).length;
-        const ties = validRatings.filter(r => r === 0).length;
+        // Calculate statistics from experiment results or current ratings
+        let validRatings = [];
         
-        // 更新統計卡片
+        if (this.currentExperiment && this.currentExperiment.results) {
+            // Use experiment results
+            validRatings = this.currentExperiment.results.map(r => r.rating).filter(r => r !== null);
+        } else {
+            // Use current ratings
+            validRatings = this.ratings.filter(r => r !== null);
+        }
+        
+        // Calculate wins based on the specific comparison
+        let leftWins, rightWins, ties;
+        
+        if (this.currentExperiment) {
+            // For experiments, calculate based on actual folder comparison
+            leftWins = validRatings.filter(r => r < 0).length;  // Negative ratings mean left side wins
+            rightWins = validRatings.filter(r => r > 0).length; // Positive ratings mean right side wins
+            ties = validRatings.filter(r => r === 0).length;
+            
+            // Update labels based on experiment folders
+            document.querySelector('#resultsSummary .stat-card:nth-child(2) h3').textContent = `${this.currentExperiment.folderA} Wins`;
+            document.querySelector('#resultsSummary .stat-card:nth-child(3) h3').textContent = `${this.currentExperiment.folderB} Wins`;
+        } else {
+            // Default Pika 2.5 vs Pika 2.2 comparison
+            leftWins = validRatings.filter(r => r < 0).length;
+            rightWins = validRatings.filter(r => r > 0).length;
+            ties = validRatings.filter(r => r === 0).length;
+            
+            // Keep default labels
+            document.querySelector('#resultsSummary .stat-card:nth-child(2) h3').textContent = 'Pika 2.5 Wins';
+            document.querySelector('#resultsSummary .stat-card:nth-child(3) h3').textContent = 'Pika 2.2 Wins';
+        }
+        
+        // Update statistics cards
         document.getElementById('totalEvaluations').textContent = validRatings.length;
-        document.getElementById('pika25Wins').textContent = pika25Wins;
-        document.getElementById('pika22Wins').textContent = pika22Wins;
+        document.getElementById('pika25Wins').textContent = leftWins;
+        document.getElementById('pika22Wins').textContent = rightWins;
         document.getElementById('ties').textContent = ties;
         
-        // 繪製餅圖
-        this.drawPieChart(pika25Wins, pika22Wins, ties);
+        // Draw pie chart
+        this.drawPieChart(leftWins, rightWins, ties);
     }
     
     drawPieChart(pika25Wins, pika22Wins, ties) {
@@ -514,26 +544,36 @@ class VideoComparison {
         const centerY = canvas.height / 2;
         const radius = 150;
         
-        // 清空畫布
+        // Clear canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
         const total = pika25Wins + pika22Wins + ties;
         if (total === 0) return;
         
+        // Determine labels based on current experiment
+        let leftLabel, rightLabel;
+        if (this.currentExperiment) {
+            leftLabel = `${this.currentExperiment.folderA} Wins`;
+            rightLabel = `${this.currentExperiment.folderB} Wins`;
+        } else {
+            leftLabel = 'Pika 2.5 Wins';
+            rightLabel = 'Pika 2.2 Wins';
+        }
+        
         const data = [
-            { label: 'Pika 2.5 Wins', value: pika25Wins, color: '#28a745' },
-            { label: 'Pika 2.2 Wins', value: pika22Wins, color: '#007bff' },
+            { label: leftLabel, value: pika25Wins, color: '#28a745' },
+            { label: rightLabel, value: pika22Wins, color: '#007bff' },
             { label: 'Ties', value: ties, color: '#6c757d' }
         ];
         
-        let currentAngle = -Math.PI / 2; // 從頂部開始
+        let currentAngle = -Math.PI / 2; // Start from top
         
-        // 繪製餅圖段落
+        // Draw pie chart segments
         data.forEach(segment => {
             if (segment.value > 0) {
                 const sliceAngle = (segment.value / total) * 2 * Math.PI;
                 
-                // 繪製段落
+                // Draw segment
                 ctx.beginPath();
                 ctx.moveTo(centerX, centerY);
                 ctx.arc(centerX, centerY, radius, currentAngle, currentAngle + sliceAngle);
@@ -544,7 +584,7 @@ class VideoComparison {
                 ctx.lineWidth = 3;
                 ctx.stroke();
                 
-                // 繪製標籤
+                // Draw labels
                 const labelAngle = currentAngle + sliceAngle / 2;
                 const labelX = centerX + Math.cos(labelAngle) * (radius + 30);
                 const labelY = centerY + Math.sin(labelAngle) * (radius + 30);
@@ -559,7 +599,7 @@ class VideoComparison {
             }
         });
         
-        // 繪製標題
+        // Draw title
         ctx.fillStyle = '#495057';
         ctx.font = 'bold 18px Arial';
         ctx.textAlign = 'center';
@@ -567,28 +607,28 @@ class VideoComparison {
     }
     
     restart() {
-        // 重置所有數據
+        // Reset all data
         this.currentPairIndex = 0;
         this.ratings = new Array(this.videoPairs.length).fill(null);
         this.currentRating = null;
         
-        // 如果是實驗模式，重置實驗結果
+        // If in experiment mode, reset experiment results
         if (this.experimentMode && this.currentExperiment) {
             this.currentExperiment.results = [];
             this.saveCurrentExperiment();
         }
         
-        // 隱藏結果界面
+        // Hide results interface
         document.getElementById('resultsSummary').style.display = 'none';
         
-        // 顯示評測界面
+        // Show evaluation interface
         document.getElementById('videoComparison').style.display = 'flex';
         document.querySelector('.rating-controls').style.display = 'flex';
         document.querySelector('.controls').style.display = 'flex';
         document.querySelector('.progress-bar').style.display = 'flex';
         document.querySelector('.prompt-section').style.display = 'block';
         
-        // 重新載入第一組
+        // Reload first pair
         this.loadCurrentPair();
         this.updateUI();
     }
@@ -602,7 +642,7 @@ class VideoComparison {
             if (this.currentExperiment) {
                 this.experimentMode = true;
                 this.updateExperimentUI();
-                console.log('實驗模式啟動:', this.currentExperiment.name);
+                console.log('Experiment mode activated:', this.currentExperiment.name);
             }
         }
     }
@@ -611,7 +651,7 @@ class VideoComparison {
         if (this.currentExperiment) {
             const experimentNameElement = document.getElementById('currentExperimentName');
             if (experimentNameElement) {
-                experimentNameElement.textContent = `當前實驗: ${this.currentExperiment.name}`;
+                experimentNameElement.textContent = `Current Experiment: ${this.currentExperiment.name}`;
             }
         }
     }
@@ -629,7 +669,7 @@ class VideoComparison {
             timestamp: new Date().toISOString()
         };
         
-        // 檢查是否已有結果，如果有則更新，否則添加
+        // Check if result already exists, update if so, otherwise add
         const existingIndex = this.currentExperiment.results.findIndex(
             r => r.pairIndex === this.currentPairIndex
         );
@@ -657,7 +697,7 @@ class VideoComparison {
     }
 }
 
-// 初始化應用程式
+// Initialize application
 let videoComparison;
 document.addEventListener('DOMContentLoaded', () => {
     videoComparison = new VideoComparison();
