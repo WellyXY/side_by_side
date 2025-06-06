@@ -35,6 +35,37 @@ class CreateExperimentManager {
 
     async getVideoFiles(folder) {
         try {
+            // 先尝试从 GitHub API 获取文件列表
+            const response = await fetch(
+                `https://api.github.com/repos/WellyXY/side_by_side/contents/${encodeURIComponent(folder)}`,
+                {
+                    headers: {
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                }
+            );
+
+            if (response.ok) {
+                const files = await response.json();
+                // 过滤出 mp4 文件
+                const videoFiles = files
+                    .filter(file => file.type === 'file' && file.name.toLowerCase().endsWith('.mp4'))
+                    .map(file => file.name);
+                
+                console.log(`从 GitHub 加载了 ${videoFiles.length} 个视频文件从 ${folder}`);
+                return videoFiles;
+            } else {
+                console.warn(`GitHub API 失败 (${response.status}), 尝试本地模式`);
+                return await this.getLocalVideoFiles(folder);
+            }
+        } catch (error) {
+            console.error(`从 ${folder} 加载文件时出错:`, error);
+            return await this.getLocalVideoFiles(folder);
+        }
+    }
+
+    async getLocalVideoFiles(folder) {
+        try {
             const response = await fetch(`${folder}/`);
             const html = await response.text();
             
@@ -44,7 +75,7 @@ class CreateExperimentManager {
             
             return Array.from(links).map(link => decodeURIComponent(link.getAttribute('href')));
         } catch (error) {
-            console.error(`Error fetching files from ${folder}:`, error);
+            console.error(`本地加载文件从 ${folder} 失败:`, error);
             return [];
         }
     }

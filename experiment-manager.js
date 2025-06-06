@@ -90,30 +90,67 @@ class ExperimentManager {
     }
 
     bindEvents() {
-        // Folder selection events
-        document.getElementById('folderA').addEventListener('change', () => this.updateFolderInfo());
-        document.getElementById('folderB').addEventListener('change', () => this.updateFolderInfo());
+        // 只绑定在当前页面存在的元素，避免错误
+        
+        // Clear all data button (在 experiment-manager.html 中存在)
+        const clearAllBtn = document.getElementById('clearAllData');
+        if (clearAllBtn) {
+            clearAllBtn.addEventListener('click', () => this.clearAllData());
+        }
 
-        // Create experiment button
-        document.getElementById('createExperiment').addEventListener('click', () => this.createExperiment());
+        // GitHub settings events (在 experiment-manager.html 中存在)
+        const githubSettingsBtn = document.getElementById('githubSettings');
+        if (githubSettingsBtn) {
+            githubSettingsBtn.addEventListener('click', () => this.showGithubSettings());
+        }
+        
+        const testConnectionBtn = document.getElementById('testConnection');
+        if (testConnectionBtn) {
+            testConnectionBtn.addEventListener('click', () => this.testGithubConnection());
+        }
+        
+        const forceSyncBtn = document.getElementById('forceSyncNow');
+        if (forceSyncBtn) {
+            forceSyncBtn.addEventListener('click', () => this.forceSyncNow());
+        }
+        
+        const saveGithubBtn = document.getElementById('saveGithubSettings');
+        if (saveGithubBtn) {
+            saveGithubBtn.addEventListener('click', () => this.saveGithubSettings());
+        }
+        
+        const cancelGithubBtn = document.getElementById('cancelGithubSettings');
+        if (cancelGithubBtn) {
+            cancelGithubBtn.addEventListener('click', () => this.hideGithubSettings());
+        }
 
-        // Clear all data button
-        document.getElementById('clearAllData').addEventListener('click', () => this.clearAllData());
+        // Delete Modal events (在 experiment-manager.html 中存在)
+        const confirmDeleteBtn = document.getElementById('confirmDelete');
+        if (confirmDeleteBtn) {
+            confirmDeleteBtn.addEventListener('click', () => this.confirmDelete());
+        }
+        
+        const cancelDeleteBtn = document.getElementById('cancelDelete');
+        if (cancelDeleteBtn) {
+            cancelDeleteBtn.addEventListener('click', () => this.hideDeleteModal());
+        }
 
-        // GitHub settings events
-        document.getElementById('githubSettings').addEventListener('click', () => this.showGithubSettings());
-        document.getElementById('testConnection').addEventListener('click', () => this.testGithubConnection());
-        document.getElementById('forceSyncNow').addEventListener('click', () => this.forceSyncNow());
-        document.getElementById('saveGithubSettings').addEventListener('click', () => this.saveGithubSettings());
-        document.getElementById('cancelGithubSettings').addEventListener('click', () => this.hideGithubSettings());
-
-        // Modal events
-        document.getElementById('confirmDelete').addEventListener('click', () => this.confirmDelete());
-        document.getElementById('cancelDelete').addEventListener('click', () => this.hideDeleteModal());
-
-        // Form validation
-        document.getElementById('experimentName').addEventListener('input', () => this.validateForm());
-        document.getElementById('experimentDescription').addEventListener('input', () => this.validateForm());
+        // 创建实验相关的元素只在 create-experiment.html 中存在，这里不应该绑定
+        // 这些元素由 create-experiment.js 处理
+        const folderA = document.getElementById('folderA');
+        const folderB = document.getElementById('folderB');
+        const createExperimentBtn = document.getElementById('createExperiment');
+        const experimentName = document.getElementById('experimentName');
+        const experimentDescription = document.getElementById('experimentDescription');
+        
+        if (folderA && folderB && createExperimentBtn && experimentName && experimentDescription) {
+            // 只有在创建实验页面才绑定这些事件
+            folderA.addEventListener('change', () => this.updateFolderInfo());
+            folderB.addEventListener('change', () => this.updateFolderInfo());
+            createExperimentBtn.addEventListener('click', () => this.createExperiment());
+            experimentName.addEventListener('input', () => this.validateForm());
+            experimentDescription.addEventListener('input', () => this.validateForm());
+        }
     }
 
     updateFolderInfo() {
@@ -612,8 +649,18 @@ class ExperimentManager {
     }
 
     showDeleteModal(id) {
+        console.log('=== 显示删除模态框 ===');
+        console.log('要删除的实验ID:', id);
+        
         this.deleteTargetId = id;
-        document.getElementById('deleteModal').style.display = 'flex';
+        const modal = document.getElementById('deleteModal');
+        
+        if (modal) {
+            modal.style.display = 'flex';
+            console.log('删除模态框已显示');
+        } else {
+            console.error('错误：找不到删除模态框元素');
+        }
     }
 
     hideDeleteModal() {
@@ -621,21 +668,71 @@ class ExperimentManager {
         document.getElementById('deleteModal').style.display = 'none';
     }
 
-    confirmDelete() {
+    async confirmDelete() {
+        console.log('=== 开始删除实验 ===');
+        console.log('deleteTargetId:', this.deleteTargetId);
+        console.log('当前实验数量:', this.experiments.length);
+        
         if (this.deleteTargetId) {
-            this.experiments = this.experiments.filter(exp => exp.id !== this.deleteTargetId);
-            this.saveExperiments();
-            this.renderExperiments();
-            this.updateStatistics();
-            this.hideDeleteModal();
-            this.showMessage('Experiment deleted', 'info');
+            const experimentToDelete = this.experiments.find(exp => exp.id === this.deleteTargetId);
+            const experimentName = experimentToDelete ? experimentToDelete.name : '未知实验';
+            
+            console.log('要删除的实验:', experimentToDelete);
+            console.log('实验名称:', experimentName);
+            
+            // 显示删除进度
+            this.showMessage(`正在删除实验: ${experimentName}...`, 'info');
+            
+            try {
+                // 保存删除前的数量
+                const beforeCount = this.experiments.length;
+                console.log('删除前实验数量:', beforeCount);
+                
+                // 从数组中移除实验
+                this.experiments = this.experiments.filter(exp => exp.id !== this.deleteTargetId);
+                
+                console.log('删除后实验数量:', this.experiments.length);
+                console.log('实验删除成功，开始保存...');
+                
+                // 保存到 GitHub 和本地存储
+                await this.saveExperiments();
+                
+                console.log('保存完成，更新界面...');
+                
+                // 更新界面
+                this.renderExperiments();
+                this.updateStatistics();
+                this.hideDeleteModal();
+                
+                // 显示成功消息
+                this.showMessage(`实验 "${experimentName}" 已成功删除 ✅`, 'success');
+                console.log('删除操作完成');
+                
+            } catch (error) {
+                console.error('删除实验时出错:', error);
+                
+                // 恢复实验（回滚操作）
+                if (experimentToDelete) {
+                    console.log('正在回滚删除操作...');
+                    this.experiments.push(experimentToDelete);
+                    this.renderExperiments();
+                    this.updateStatistics();
+                }
+                
+                this.showMessage(`删除实验失败: ${error.message}`, 'error');
+            }
+        } else {
+            console.log('错误：没有指定要删除的实验ID');
+            this.showMessage('删除失败：没有选择要删除的实验', 'error');
         }
+        
+        console.log('=== 删除实验结束 ===');
     }
 
     clearAllData() {
         if (confirm('⚠️ Warning!\n\nThis will delete all experiment data and user session records. This action cannot be undone.\n\nAre you sure you want to clear all data?')) {
             // Clear all localStorage keys related to the application
-            localStorage.removeItem('pikaExperiments');
+            localStorage.removeItem('sbs_experiments');
             localStorage.removeItem('currentUserId');
             localStorage.removeItem('currentRoundId');
             localStorage.removeItem('currentExperimentId');
