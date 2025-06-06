@@ -51,4 +51,5 @@
     }
     
     console.log('🎯 Token强制更新完成，请重试创建实验');
+    console.log('📅 更新时间:', new Date().toLocaleString());
 })(); 
