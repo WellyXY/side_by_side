@@ -94,7 +94,7 @@ window.githubDataManager = new GitHubDataManager('WellyXY', 'side_by_side', 'exp
 
 
 // --- Existing auto-config logic ---
-const encodedToken = 'Z2hwX0tQUVlsZ3A5eWs3cWtIOHZ3OEI4OGh1MEU1dXIxNDBhd3kzcA=='; // New token
+const encodedToken = 'Z2hwX3hGbDVnWjd2YU5JeFB6MGRSNTBRR2VLNVRPcEtpNTFxVFFaRg=='; // New token from user
 const storedToken = localStorage.getItem('github_token');
 
 if (!storedToken || storedToken !== atob(encodedToken)) {
