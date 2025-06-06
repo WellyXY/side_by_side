@@ -400,39 +400,54 @@ class ExperimentManager {
             this.updateUserStats(experimentId, suggestedUserId);
         }
         
-        // Bind events
-        const userSelect = document.getElementById('userId');
-        const startButton = document.getElementById('startNewRound');
-        const cancelButton = document.getElementById('cancelUserSelection');
+        // Bind events with more direct approach
+        const userSelect = modal.querySelector('#userId');
+        const startButton = modal.querySelector('#startNewRound');
+        const cancelButton = modal.querySelector('#cancelUserSelection');
+        
+        console.log('Binding events to:', { userSelect, startButton, cancelButton }); // Debug info
+        
+        if (!startButton) {
+            console.error('Start button not found!');
+            return;
+        }
         
         userSelect.addEventListener('change', (e) => {
             this.updateUserStats(experimentId, e.target.value);
         });
         
-        startButton.addEventListener('click', (e) => {
+        // Use a more direct approach for the start button
+        startButton.onclick = (e) => {
             e.preventDefault();
             e.stopPropagation();
             
             const userId = userSelect.value;
             console.log('Start button clicked, userId:', userId); // Debug info
             
-            if (userId) {
-                try {
-                    this.startUserRound(experimentId, userId);
-                    document.body.removeChild(modal);
-                } catch (error) {
-                    console.error('Error starting user round:', error);
-                    alert('Error starting round: ' + error.message);
-                }
-            } else {
+            if (!userId) {
                 alert('Please select a User ID');
+                return;
             }
-        });
+            
+            try {
+                console.log('Calling startUserRound...'); // Debug info
+                this.startUserRound(experimentId, userId);
+                // Remove modal after a short delay to allow processing
+                setTimeout(() => {
+                    if (document.body.contains(modal)) {
+                        document.body.removeChild(modal);
+                    }
+                }, 50);
+            } catch (error) {
+                console.error('Error starting user round:', error);
+                alert('Error starting round: ' + error.message);
+            }
+        };
         
-        cancelButton.addEventListener('click', (e) => {
+        cancelButton.onclick = (e) => {
             e.preventDefault();
             document.body.removeChild(modal);
-        });
+        };
     }
 
     updateUserStats(experimentId, userId) {
@@ -463,23 +478,43 @@ class ExperimentManager {
     }
 
     startUserRound(experimentId, userId) {
-        console.log('startUserRound called with:', experimentId, userId); // Debug info
+        console.log('=== startUserRound START ===');
+        console.log('Parameters:', { experimentId, userId });
+        
+        // Validate inputs
+        if (!experimentId || !userId) {
+            const error = 'Missing experimentId or userId';
+            console.error(error);
+            throw new Error(error);
+        }
         
         const experiment = this.experiments.find(exp => exp.id === experimentId);
         if (!experiment) {
-            console.error('Experiment not found:', experimentId);
-            return;
+            const error = `Experiment not found: ${experimentId}`;
+            console.error(error);
+            throw new Error(error);
         }
         
-        console.log('Found experiment:', experiment.name); // Debug info
+        console.log('Found experiment:', experiment.name);
+        
+        // Check if experiment has pairs
+        if (!experiment.pairs || experiment.pairs.length === 0) {
+            const error = 'Experiment has no video pairs';
+            console.error(error);
+            throw new Error(error);
+        }
+        
+        console.log('Experiment has', experiment.pairs.length, 'pairs');
         
         // Initialize user session if not exists
         if (!experiment.userSessions) {
             experiment.userSessions = {};
+            console.log('Initialized userSessions object');
         }
         
         if (!experiment.userSessions[userId]) {
             experiment.userSessions[userId] = { rounds: [] };
+            console.log('Initialized user session for', userId);
         }
         
         // Create new round
@@ -494,21 +529,33 @@ class ExperimentManager {
         experiment.userSessions[userId].rounds.push(newRound);
         experiment.lastModified = new Date().toISOString();
         
-        console.log('Created new round:', roundId, 'for user:', userId); // Debug info
+        console.log('Created new round:', roundId, 'for user:', userId);
+        console.log('User now has', experiment.userSessions[userId].rounds.length, 'rounds');
         
-        this.saveExperiments();
+        // Save experiments
+        try {
+            this.saveExperiments();
+            console.log('Experiments saved successfully');
+        } catch (error) {
+            console.error('Error saving experiments:', error);
+            throw new Error('Failed to save experiment data');
+        }
         
         // Set current session info
-        localStorage.setItem('currentExperimentId', experimentId);
-        localStorage.setItem('currentUserId', userId);
-        localStorage.setItem('currentRoundId', roundId);
+        try {
+            localStorage.setItem('currentExperimentId', experimentId);
+            localStorage.setItem('currentUserId', userId);
+            localStorage.setItem('currentRoundId', roundId);
+            console.log('Session info stored in localStorage');
+        } catch (error) {
+            console.error('Error storing session info:', error);
+            throw new Error('Failed to store session information');
+        }
         
-        console.log('Stored session info, redirecting to index.html'); // Debug info
+        console.log('=== Redirecting to index.html ===');
         
-        // Add small delay to ensure localStorage is saved
-        setTimeout(() => {
-            window.location.href = 'index.html';
-        }, 100);
+        // Redirect immediately - no need for delay
+        window.location.href = 'index.html';
     }
 
     restartExperiment(id) {
