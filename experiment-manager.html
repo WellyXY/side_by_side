@@ -51,55 +51,29 @@
         </div>
 
         <div class="main-content">
-            <!-- Create New Experiment Section -->
-            <section class="create-experiment">
-                <h2>Create New Experiment</h2>
-                <div class="experiment-form">
-                    <div class="form-group">
-                        <label for="experimentName">Experiment Name:</label>
-                        <input type="text" id="experimentName" placeholder="e.g., Pika 2.5 vs Pika 2.2 DMD">
+            <!-- Quick Actions Section -->
+            <section class="quick-actions">
+                <div class="action-cards">
+                    <div class="action-card create-card">
+                        <div class="card-icon">🎬</div>
+                        <h3>Create New Experiment</h3>
+                        <p>Set up a new side-by-side video comparison experiment</p>
+                        <a href="create-experiment.html" class="action-btn create-btn">Create Experiment</a>
                     </div>
-
-                    <div class="form-group">
-                        <label for="experimentDescription">Experiment Description:</label>
-                        <textarea id="experimentDescription" placeholder="Detailed description of the experiment purpose and comparison content"></textarea>
+                    
+                    <div class="action-card manage-card">
+                        <div class="card-icon">📁</div>
+                        <h3>Manage Videos</h3>
+                        <p>Upload and organize video files for experiments</p>
+                        <a href="video-manager.html" class="action-btn manage-btn">Manage Videos</a>
                     </div>
-
-                    <div class="folder-selection">
-                        <div class="folder-group">
-                            <label>Folder A (Left Side):</label>
-                            <select id="folderA">
-                                <option value="">Select folder...</option>
-                                <option value="Pika2.2">Pika2.2</option>
-                                <option value="Pika2.5">Pika2.5</option>
-                                <option value="Pika 2.2 DMD">Pika 2.2 DMD</option>
-                            </select>
-                            <div class="folder-info" id="folderAInfo"></div>
-                        </div>
-
-                        <div class="vs-indicator">VS</div>
-
-                        <div class="folder-group">
-                            <label>Folder B (Right Side):</label>
-                            <select id="folderB">
-                                <option value="">Select folder...</option>
-                                <option value="Pika2.2">Pika2.2</option>
-                                <option value="Pika2.5">Pika2.5</option>
-                                <option value="Pika 2.2 DMD">Pika 2.2 DMD</option>
-                            </select>
-                            <div class="folder-info" id="folderBInfo"></div>
-                        </div>
+                    
+                    <div class="action-card sync-card">
+                        <div class="card-icon">⚙️</div>
+                        <h3>GitHub Sync</h3>
+                        <p>Configure data synchronization across users</p>
+                        <button id="githubSettings" class="action-btn sync-btn">Configure Sync</button>
                     </div>
-
-                    <div class="matching-preview" id="matchingPreview" style="display: none;">
-                        <h3>Pairing Preview</h3>
-                        <div class="matching-stats">
-                            <span>Found <strong id="matchCount">0</strong> pairs</span>
-                        </div>
-                        <div class="matched-pairs" id="matchedPairs"></div>
-                    </div>
-
-                    <button id="createExperiment" class="create-btn" disabled>Create Experiment</button>
                 </div>
             </section>
 

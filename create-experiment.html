@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create New Experiment - Pika Video Quality Evaluation</title>
+    <link rel="stylesheet" href="experiment-manager.css">
+    <style>
+        .create-experiment-page {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .page-header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        .page-header h1 {
+            margin: 0 0 10px 0;
+            font-size: 2.5rem;
+        }
+        
+        .page-header p {
+            margin: 0;
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+        
+        .form-container {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        .nav-breadcrumb {
+            margin-bottom: 30px;
+        }
+        
+        .nav-breadcrumb a {
+            color: #6366f1;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .nav-breadcrumb a:hover {
+            text-decoration: underline;
+        }
+        
+        .success-message {
+            display: none;
+            background: #f0fdf4;
+            border: 1px solid #10b981;
+            color: #166534;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="create-experiment-page">
+        <div class="nav-breadcrumb">
+            <a href="experiment-manager.html">← Back to Experiment Manager</a>
+        </div>
+        
+        <div class="page-header">
+            <h1>🎬 Create New Experiment</h1>
+            <p>Set up a new side-by-side video quality comparison experiment</p>
+        </div>
+        
+        <div id="successMessage" class="success-message">
+            <h3>✅ Experiment Created Successfully!</h3>
+            <p>Your experiment has been created and is ready for participants.</p>
+            <button id="viewExperiments" class="nav-btn">View All Experiments</button>
+        </div>
+        
+        <div class="form-container">
+            <div class="create-experiment">
+                <div class="experiment-form">
+                    <div class="form-group">
+                        <label for="experimentName">Experiment Name:</label>
+                        <input type="text" id="experimentName" placeholder="e.g., Pika 2.5 vs Pika 2.2 DMD">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="experimentDescription">Experiment Description:</label>
+                        <textarea id="experimentDescription" placeholder="Detailed description of the experiment purpose and comparison content" rows="4"></textarea>
+                    </div>
+
+                    <div class="folder-selection">
+                        <div class="folder-group">
+                            <label>Folder A (Left Side):</label>
+                            <select id="folderA">
+                                <option value="">Select folder...</option>
+                                <option value="Pika2.2">Pika2.2</option>
+                                <option value="Pika2.5">Pika2.5</option>
+                                <option value="Pika 2.2 DMD">Pika 2.2 DMD</option>
+                            </select>
+                            <div class="folder-info" id="folderAInfo"></div>
+                        </div>
+
+                        <div class="vs-indicator">VS</div>
+
+                        <div class="folder-group">
+                            <label>Folder B (Right Side):</label>
+                            <select id="folderB">
+                                <option value="">Select folder...</option>
+                                <option value="Pika2.2">Pika2.2</option>
+                                <option value="Pika2.5">Pika2.5</option>
+                                <option value="Pika 2.2 DMD">Pika 2.2 DMD</option>
+                            </select>
+                            <div class="folder-info" id="folderBInfo"></div>
+                        </div>
+                    </div>
+
+                    <div class="matching-preview" id="matchingPreview" style="display: none;">
+                        <h3>Pairing Preview</h3>
+                        <div class="matching-stats">
+                            <span>Found <strong id="matchCount">0</strong> pairs</span>
+                        </div>
+                        <div class="matched-pairs" id="matchedPairs"></div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button id="createExperiment" class="create-btn" disabled>Create Experiment</button>
+                        <a href="experiment-manager.html" class="cancel-btn">Cancel</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="create-experiment.js"></script>
+</body>
+</html> 
