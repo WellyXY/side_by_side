@@ -94,13 +94,23 @@
               "results": []
             }
           ]
+        },
+        "user2": {
+          "rounds": [
+            {
+              "roundId": "round_1749250915327",
+              "startTime": "2025-06-06T23:01:55.327Z",
+              "completed": false,
+              "results": []
+            }
+          ]
         }
       },
       "createdAt": "2025-06-06T22:34:22.732Z",
-      "lastModified": "2025-06-06T22:34:26.899Z",
+      "lastModified": "2025-06-06T23:01:55.327Z",
       "status": "not-started"
     }
   ],
-  "lastUpdated": "2025-06-06T22:34:26.899Z",
+  "lastUpdated": "2025-06-06T23:01:55.327Z",
   "totalExperiments": 1
 }
