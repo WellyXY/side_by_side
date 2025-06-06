@@ -851,20 +851,16 @@ class VideoComparison {
     }
 
     async checkExperimentMode() {
-        const experimentId = localStorage.getItem('currentExperimentId');
-        if (experimentId) {
-            // Load fresh data from GitHub to ensure we have the latest user sessions
-            let experiments = [];
-            try {
-                const currentData = await this.loadExperimentsFromGitHub();
-                experiments = currentData.experiments || [];
-                console.log('Loaded fresh experiment data from GitHub');
-            } catch (error) {
-                console.error('Failed to load from GitHub, using local cache:', error);
-                experiments = JSON.parse(localStorage.getItem('sbs_experiments') || '[]');
-            }
-            
-            this.currentExperiment = experiments.find(exp => exp.id === experimentId);
+        const urlParams = new URLSearchParams(window.location.search);
+        const experimentIdFromStorage = localStorage.getItem('currentExperimentId');
+
+        if (urlParams.get('showResults') === 'true' && experimentIdFromStorage) {
+            // ... (existing showResults logic)
+        } else if (experimentIdFromStorage) {
+            await this.waitForTokenConfiguration();
+            const data = await this.loadExperimentsFromGitHub();
+            console.log('Loaded fresh experiment data from GitHub');
+            this.currentExperiment = data.experiments.find(exp => exp.id === experimentIdFromStorage);
             
             if (this.currentExperiment) {
                 this.experimentMode = true;
@@ -874,49 +870,43 @@ class VideoComparison {
                 console.log('=== checkExperimentMode DEBUG ===');
                 console.log('Stored userId:', this.currentUserId);
                 console.log('Stored roundId:', this.currentRoundId);
-                console.log('Available user sessions:', Object.keys(this.currentExperiment.userSessions || {}));
                 
-                // Find current round
+                if (!this.currentExperiment.userSessions) {
+                    this.currentExperiment.userSessions = {};
+                }
+                console.log('Available user sessions:', Object.keys(this.currentExperiment.userSessions));
+
                 if (this.currentUserId && this.currentRoundId) {
-                    const userSession = this.currentExperiment.userSessions[this.currentUserId];
-                    console.log('Found user session:', !!userSession);
+                    let userSession = this.currentExperiment.userSessions[this.currentUserId];
                     
-                    if (userSession) {
-                        console.log('User session data:', userSession);
-                        console.log('User session rounds:', userSession.rounds);
-                        console.log('Looking for roundId:', this.currentRoundId);
-                        console.log('Available roundIds:', userSession.rounds.map(r => r.roundId));
-                        
-                        this.currentRound = userSession.rounds.find(round => round.roundId === this.currentRoundId);
-                        console.log('Found round:', !!this.currentRound);
-                        console.log('Round data:', this.currentRound);
-                        
-                        // If round not found, create a new one (data sync fix)
-                        if (!this.currentRound) {
-                            console.log('Round not found, creating new round...');
-                            this.currentRound = {
-                                roundId: this.currentRoundId,
-                                startTime: new Date().toISOString(),
-                                completed: false,
-                                results: []
-                            };
-                            userSession.rounds.push(this.currentRound);
-                            console.log('Created new round:', this.currentRound);
-                            
-                            // Save to GitHub immediately
-                            this.saveCurrentExperiment().catch(error => {
-                                console.error('Error saving new round:', error);
-                            });
-                        }
-                    } else {
-                        console.log('No user session found for', this.currentUserId);
-                        // Reset to avoid confusion
-                        this.currentUserId = null;
-                        this.currentRoundId = null;
-                        this.currentRound = null;
+                    // If user session doesn't exist, create it (robustness fix)
+                    if (!userSession) {
+                        console.log(`User session for '${this.currentUserId}' not found. Creating it now.`);
+                        userSession = { rounds: [] };
+                        this.currentExperiment.userSessions[this.currentUserId] = userSession;
+                    }
+                    console.log('Found user session:', !!userSession);
+
+                    this.currentRound = userSession.rounds.find(round => round.roundId === this.currentRoundId);
+                    console.log('Found round:', !!this.currentRound);
+                    
+                    // If round not found, create it (data sync fix)
+                    if (!this.currentRound) {
+                        console.log(`Round '${this.currentRoundId}' not found. Creating it now.`);
+                        this.currentRound = {
+                            roundId: this.currentRoundId,
+                            startTime: new Date().toISOString(),
+                            completed: false,
+                            results: []
+                        };
+                        userSession.rounds.push(this.currentRound);
+                        // Save to GitHub immediately since we've altered the structure
+                        this.saveCurrentExperiment().catch(error => {
+                            console.error('Error saving newly created user/round structure:', error);
+                        });
                     }
                 } else {
-                    console.log('Missing userId or roundId');
+                    console.log('Missing userId or roundId in localStorage. Cannot determine current round.');
                     this.currentRound = null;
                 }
                 
