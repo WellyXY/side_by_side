@@ -3,47 +3,105 @@ class VideoManager {
         this.folders = [];
         this.currentUploadFolder = null;
         
-        // 模拟的文件夹和文件数据（实际应该从服务器获取）
-        this.mockFolders = [
+        // GitHub 配置
+        this.githubConfig = {
+            owner: 'WellyXY',
+            repo: 'side_by_side',
+            branch: 'main'
+        };
+    }
+
+    init() {
+        this.loadFoldersFromGitHub();
+        this.bindEvents();
+    }
+
+    async loadFoldersFromGitHub() {
+        try {
+            console.log('Loading video folders from GitHub...');
+            
+            // 获取仓库文件夹结构
+            const response = await fetch(`https://api.github.com/repos/${this.githubConfig.owner}/${this.githubConfig.repo}/git/trees/${this.githubConfig.branch}?recursive=1`);
+            
+            if (!response.ok) {
+                throw new Error(`GitHub API error: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            const videoFolders = new Map();
+            
+            // 解析文件树，找到视频文件
+            data.tree.forEach(item => {
+                if (item.type === 'blob' && item.path.endsWith('.mp4')) {
+                    const pathParts = item.path.split('/');
+                    if (pathParts.length >= 2) {
+                        const folderName = pathParts[0];
+                        const fileName = pathParts[pathParts.length - 1];
+                        
+                        if (!videoFolders.has(folderName)) {
+                            videoFolders.set(folderName, {
+                                name: folderName,
+                                files: [],
+                                isGitHub: true
+                            });
+                        }
+                        
+                        videoFolders.get(folderName).files.push({
+                            name: fileName,
+                            size: 'Loading...', // 大小需要额外 API 调用
+                            path: item.path,
+                            url: `https://github.com/${this.githubConfig.owner}/${this.githubConfig.repo}/raw/${this.githubConfig.branch}/${item.path}`
+                        });
+                    }
+                }
+            });
+            
+            this.folders = Array.from(videoFolders.values());
+            
+            // 加载用户创建的自定义文件夹
+            const customFolders = JSON.parse(localStorage.getItem('custom_folders') || '[]');
+            this.folders.push(...customFolders);
+            
+            console.log(`Found ${this.folders.length} video folders with videos`);
+            this.renderFolders();
+            
+        } catch (error) {
+            console.error('Error loading folders from GitHub:', error);
+            this.showMessage('Failed to load video folders from GitHub. Using local data.', 'warning');
+            this.loadFallbackData();
+        }
+    }
+
+    loadFallbackData() {
+        // 备用数据，以防 GitHub 加载失败
+        this.folders = [
             {
                 name: 'Pika2.2',
                 files: [
-                    { name: 'video1.mp4', size: '15.2 MB' },
-                    { name: 'video2.mp4', size: '18.7 MB' },
-                    { name: 'video3.mp4', size: '12.1 MB' }
-                ]
+                    { name: 'Loading from GitHub...', size: '-' }
+                ],
+                isGitHub: true
             },
             {
                 name: 'Pika2.5', 
                 files: [
-                    { name: 'sample1.mp4', size: '20.3 MB' },
-                    { name: 'sample2.mp4', size: '16.8 MB' }
-                ]
+                    { name: 'Loading from GitHub...', size: '-' }
+                ],
+                isGitHub: true
             },
             {
                 name: 'Pika 2.2 DMD',
                 files: [
-                    { name: 'dmd_test1.mp4', size: '22.1 MB' },
-                    { name: 'dmd_test2.mp4', size: '19.5 MB' },
-                    { name: 'dmd_test3.mp4', size: '25.0 MB' }
-                ]
+                    { name: 'Loading from GitHub...', size: '-' }
+                ],
+                isGitHub: true
             }
         ];
-    }
-
-    init() {
-        this.loadFolders();
-        this.bindEvents();
-        this.renderFolders();
-    }
-
-    loadFolders() {
-        // 加载现有文件夹数据（这里使用模拟数据）
-        this.folders = [...this.mockFolders];
         
-        // 也可以从 localStorage 加载用户创建的文件夹
         const customFolders = JSON.parse(localStorage.getItem('custom_folders') || '[]');
         this.folders.push(...customFolders);
+        
+        this.renderFolders();
     }
 
     bindEvents() {
@@ -112,33 +170,64 @@ class VideoManager {
         const card = document.createElement('div');
         card.className = 'folder-card';
         
+        const folderTypeIndicator = folder.isGitHub ? '🌐' : folder.isCustom ? '📁' : '💾';
+        const folderStatus = folder.isGitHub ? 'GitHub Repository' : folder.isCustom ? 'Custom Folder' : 'Local Folder';
+        
         card.innerHTML = `
             <div class="folder-header">
-                <div class="folder-name">${folder.name}</div>
+                <div class="folder-name">${folderTypeIndicator} ${folder.name}</div>
                 <div class="file-count">${folder.files.length} files</div>
             </div>
             
-            <div class="upload-area" data-folder="${folder.name}">
-                <div class="upload-icon">📁</div>
-                <div><strong>Click to upload videos</strong></div>
-                <div style="margin-top: 5px; color: #6b7280; font-size: 0.9rem;">
-                    Or drag and drop video files here
-                </div>
-                <div class="progress-bar">
-                    <div class="progress-fill"></div>
-                </div>
+            <div style="text-align: center; color: #6b7280; font-size: 0.8rem; margin-bottom: 15px;">
+                ${folderStatus}
             </div>
+            
+            ${!folder.isGitHub ? `
+                <div class="upload-area" data-folder="${folder.name}">
+                    <div class="upload-icon">📁</div>
+                    <div><strong>Click to upload videos</strong></div>
+                    <div style="margin-top: 5px; color: #6b7280; font-size: 0.9rem;">
+                        Or drag and drop video files here
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill"></div>
+                    </div>
+                </div>
+            ` : `
+                <div style="text-align: center; padding: 20px; background: #f8f9fa; border-radius: 8px; margin-bottom: 20px;">
+                    <div style="color: #28a745; font-weight: 600;">📂 GitHub Repository Folder</div>
+                    <div style="color: #6c757d; font-size: 0.9rem; margin-top: 5px;">
+                        Videos are stored in GitHub LFS
+                    </div>
+                </div>
+            `}
             
             <div class="file-list">
                 ${folder.files.map(file => `
                     <div class="file-item">
-                        <div class="file-name">${file.name}</div>
+                        <div class="file-name" title="${file.name}">${file.name}</div>
                         <div class="file-size">${file.size}</div>
-                        <div class="delete-file" onclick="videoManager.deleteFile('${folder.name}', '${file.name}')">
-                            🗑️
+                        <div style="display: flex; gap: 5px;">
+                            ${file.url ? `
+                                <a href="${file.url}" target="_blank" style="color: #007bff; text-decoration: none; padding: 5px;">
+                                    🔗
+                                </a>
+                            ` : ''}
+                            ${!folder.isGitHub ? `
+                                <div class="delete-file" onclick="videoManager.deleteFile('${folder.name}', '${file.name}')">
+                                    🗑️
+                                </div>
+                            ` : ''}
                         </div>
                     </div>
                 `).join('')}
+                
+                ${folder.files.length === 0 ? `
+                    <div style="text-align: center; color: #6b7280; padding: 20px; font-style: italic;">
+                        No videos in this folder
+                    </div>
+                ` : ''}
             </div>
             
             ${folder.isCustom ? `
@@ -151,9 +240,13 @@ class VideoManager {
             ` : ''}
         `;
 
-        // 绑定上传区域事件
-        const uploadArea = card.querySelector('.upload-area');
-        this.bindUploadEvents(uploadArea, folder.name);
+        // 只为非 GitHub 文件夹绑定上传事件
+        if (!folder.isGitHub) {
+            const uploadArea = card.querySelector('.upload-area');
+            if (uploadArea) {
+                this.bindUploadEvents(uploadArea, folder.name);
+            }
+        }
 
         return card;
     }
@@ -288,8 +381,8 @@ class VideoManager {
             top: 20px;
             right: 20px;
             padding: 15px 25px;
-            background: ${type === 'success' ? '#d4edda' : type === 'error' ? '#f8d7da' : '#d1ecf1'};
-            color: ${type === 'success' ? '#155724' : type === 'error' ? '#721c24' : '#0c5460'};
+            background: ${type === 'success' ? '#d4edda' : type === 'error' ? '#f8d7da' : type === 'warning' ? '#fff3cd' : '#d1ecf1'};
+            color: ${type === 'success' ? '#155724' : type === 'error' ? '#721c24' : type === 'warning' ? '#856404' : '#0c5460'};
             border-radius: 10px;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
             z-index: 1001;
