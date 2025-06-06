@@ -20,7 +20,7 @@ class VideoComparison {
             await this.waitForTokenConfiguration();
             
             // Check if there's a current experiment
-            this.checkExperimentMode();
+            await this.checkExperimentMode();
             
             // Check if should directly show results
             const urlParams = new URLSearchParams(window.location.search);
@@ -850,10 +850,20 @@ class VideoComparison {
         this.updateUI();
     }
 
-    checkExperimentMode() {
+    async checkExperimentMode() {
         const experimentId = localStorage.getItem('currentExperimentId');
         if (experimentId) {
-            const experiments = JSON.parse(localStorage.getItem('sbs_experiments') || '[]');
+            // Load fresh data from GitHub to ensure we have the latest user sessions
+            let experiments = [];
+            try {
+                const currentData = await this.loadExperimentsFromGitHub();
+                experiments = currentData.experiments || [];
+                console.log('Loaded fresh experiment data from GitHub');
+            } catch (error) {
+                console.error('Failed to load from GitHub, using local cache:', error);
+                experiments = JSON.parse(localStorage.getItem('sbs_experiments') || '[]');
+            }
+            
             this.currentExperiment = experiments.find(exp => exp.id === experimentId);
             
             if (this.currentExperiment) {
