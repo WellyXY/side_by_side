@@ -415,46 +415,41 @@ class ExperimentManager {
     }
 
     calculateExperimentStats(experiment) {
+        console.log(`Calculating stats for experiment: ${experiment.name}`);
         const userSessions = experiment.userSessions || {};
         const uniqueUsers = Object.keys(userSessions).length;
         
         let totalRounds = 0;
         let totalRatings = 0;
-        let completedRounds = 0;
-        
-        // Count ratings from user sessions
-        Object.values(userSessions).forEach(userSession => {
-            totalRounds += userSession.rounds.length;
-            userSession.rounds.forEach(round => {
-                totalRatings += round.results.length;
-                if (round.completed) {
-                    completedRounds++;
-                }
-            });
-        });
-        
-        // Also count direct results array if it exists
-        if (experiment.results && Array.isArray(experiment.results)) {
-            totalRatings += experiment.results.length;
-            console.log('Added', experiment.results.length, 'results from experiment.results array');
+
+        // 1. Calculate from userSessions (the primary source)
+        for (const userId in userSessions) {
+            const session = userSessions[userId];
+            if (session.rounds && Array.isArray(session.rounds)) {
+                totalRounds += session.rounds.length;
+                session.rounds.forEach(round => {
+                    if (round.results && Array.isArray(round.results)) {
+                        totalRatings += round.results.length;
+                    }
+                });
+            }
         }
         
-        console.log('Experiment stats calculation:', {
-            experimentId: experiment.id,
-            uniqueUsers,
-            totalRounds,
-            totalRatings,
-            completedRounds,
-            hasDirectResults: !!(experiment.results && experiment.results.length > 0),
-            hasUserSessions: Object.keys(userSessions).length > 0
-        });
+        // 2. Include top-level results array as a fallback/secondary source
+        if (experiment.results && Array.isArray(experiment.results)) {
+            // To avoid double-counting, we need a more sophisticated check.
+            // For now, let's just add them, assuming they are not duplicates.
+            // A better approach would be to ensure data is saved in one canonical place.
+            totalRatings += experiment.results.length;
+            console.warn("Warning: Found ratings in top-level results array. This might indicate an old data structure or lead to double-counting.");
+        }
+
+        console.log(`Stats for ${experiment.name}: Users=${uniqueUsers}, Rounds=${totalRounds}, Ratings=${totalRatings}`);
         
         return {
-            uniqueUsers,
-            totalRounds,
-            totalRatings,
-            completedRounds,
-            avgRatingsPerUser: uniqueUsers > 0 ? Math.round(totalRatings / uniqueUsers) : 0
+            uniqueUsers: uniqueUsers,
+            totalRounds: totalRounds,
+            totalRatings: totalRatings
         };
     }
 
