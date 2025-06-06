@@ -621,7 +621,7 @@ class ExperimentManager {
         }
     }
 
-    startUserRound(experimentId, userId) {
+    async startUserRound(experimentId, userId) {
         if (!userId) {
             this.showMessage('Please select or create a user.', 'error');
             return;
@@ -632,48 +632,48 @@ class ExperimentManager {
             this.showMessage('Experiment not found.', 'error');
             return;
         }
-        
-        console.log('=== startUserRound ===', experimentId, userId);
-        
-        // Basic validation
-        if (!experimentId || !userId) {
-            throw new Error('Missing experiment ID or user ID');
+
+        try {
+            this.showLoading('Creating test environment...');
+
+            // Ensure user session exists
+            if (!experiment.userSessions) experiment.userSessions = {};
+            if (!experiment.userSessions[userId]) experiment.userSessions[userId] = { rounds: [] };
+
+            // Create new round
+            const roundId = `round_${Date.now()}`;
+            const newRound = {
+                roundId: roundId,
+                startTime: new Date().toISOString(),
+                completed: false,
+                results: []
+            };
+            experiment.userSessions[userId].rounds.push(newRound);
+            experiment.lastModified = new Date().toISOString();
+
+            console.log(`Round created: ${roundId} for user: ${userId}`);
+
+            // CRITICAL FIX: Await the save operation before proceeding
+            await this.saveExperiments();
+            console.log('Save operation complete.');
+
+            // Set localStorage items AFTER save is confirmed
+            localStorage.setItem('currentExperimentId', experimentId);
+            localStorage.setItem('currentUserId', userId);
+            localStorage.setItem('currentRoundId', roundId);
+            console.log('localStorage is set. Redirecting...');
+            
+            this.hideLoading();
+
+            // Redirect with cache-busting
+            const cacheBuster = new Date().getTime();
+            window.location.href = `index.html?v=${cacheBuster}`;
+
+        } catch (error) {
+            console.error('Failed to start user round:', error);
+            this.showMessage(`Error: ${error.message}`, 'error');
+            this.hideLoading();
         }
-        
-        if (!experiment.pairs || experiment.pairs.length === 0) {
-            throw new Error('No video pairs found');
-        }
-        
-        console.log('Validation passed, creating round...');
-        
-        // Initialize user session
-        if (!experiment.userSessions) experiment.userSessions = {};
-        if (!experiment.userSessions[userId]) experiment.userSessions[userId] = { rounds: [] };
-        
-        // Create new round
-        const roundId = `round_${Date.now()}`;
-        const newRound = {
-            roundId: roundId,
-            startTime: new Date().toISOString(),
-            completed: false,
-            results: []
-        };
-        
-        experiment.userSessions[userId].rounds.push(newRound);
-        experiment.lastModified = new Date().toISOString();
-        
-        console.log('Round created:', roundId);
-        
-        // Save and redirect
-        this.saveExperiments();
-        localStorage.setItem('currentExperimentId', experimentId);
-        localStorage.setItem('currentUserId', userId);
-        localStorage.setItem('currentRoundId', roundId);
-        
-        console.log('Redirecting to evaluation...');
-        // Add cache-busting query parameter
-        const cacheBuster = new Date().getTime();
-        window.location.href = `index.html?v=${cacheBuster}`;
     }
 
     restartExperiment(id) {
