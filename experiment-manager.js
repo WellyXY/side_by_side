@@ -465,8 +465,12 @@ class ExperimentManager {
         buttons.push(`<button class="action-btn start-btn" onclick="experimentManager.startExperiment('${experiment.id}')">Join Test</button>`);
         
         // Show results if there are any ratings OR if experiment has user sessions (temporary fix)
+        console.log('Button check for', experiment.name, '- totalRatings:', stats.totalRatings, 'uniqueUsers:', stats.uniqueUsers);
         if (stats.totalRatings > 0 || stats.uniqueUsers > 0) {
+            console.log('Adding View Results button for', experiment.name);
             buttons.push(`<button class="action-btn view-btn" onclick="experimentManager.viewResults('${experiment.id}')">View Results</button>`);
+        } else {
+            console.log('Not adding View Results button for', experiment.name);
         }
         
         return buttons.join('');
