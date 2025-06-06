@@ -103,6 +103,7 @@ class ExperimentManager {
         // GitHub settings events
         document.getElementById('githubSettings').addEventListener('click', () => this.showGithubSettings());
         document.getElementById('testConnection').addEventListener('click', () => this.testGithubConnection());
+        document.getElementById('forceSyncNow').addEventListener('click', () => this.forceSyncNow());
         document.getElementById('saveGithubSettings').addEventListener('click', () => this.saveGithubSettings());
         document.getElementById('cancelGithubSettings').addEventListener('click', () => this.hideGithubSettings());
 
@@ -751,10 +752,12 @@ class ExperimentManager {
 
         try {
             console.log('Saving experiments to GitHub...');
+            console.log('Number of experiments to save:', this.experiments.length);
             
             const content = {
                 experiments: this.experiments,
-                lastUpdated: new Date().toISOString()
+                lastUpdated: new Date().toISOString(),
+                totalExperiments: this.experiments.length
             };
 
             const encodedContent = btoa(JSON.stringify(content, null, 2));
@@ -767,6 +770,9 @@ class ExperimentManager {
             // 如果文件已存在，需要提供 SHA
             if (this.githubConfig.sha) {
                 requestBody.sha = this.githubConfig.sha;
+                console.log('Updating existing file with SHA:', this.githubConfig.sha);
+            } else {
+                console.log('Creating new file');
             }
 
             const response = await fetch(`https://api.github.com/repos/${this.githubConfig.owner}/${this.githubConfig.repo}/contents/${this.githubConfig.dataFile}`, {
@@ -779,18 +785,23 @@ class ExperimentManager {
                 body: JSON.stringify(requestBody)
             });
 
+            console.log('GitHub API response status:', response.status);
+
             if (response.ok) {
                 const result = await response.json();
                 this.githubConfig.sha = result.content.sha;
                 console.log('Successfully saved experiments to GitHub');
-                this.showMessage('Experiments saved to GitHub successfully!', 'success');
+                console.log('New SHA:', this.githubConfig.sha);
+                this.showMessage('Experiments saved to GitHub successfully! 🎉', 'success');
                 return true;
             } else {
-                throw new Error(`GitHub API error: ${response.status}`);
+                const errorText = await response.text();
+                console.error('GitHub API error response:', errorText);
+                throw new Error(`GitHub API error: ${response.status} - ${errorText}`);
             }
         } catch (error) {
             console.error('Failed to save to GitHub:', error);
-            this.showMessage('Failed to save to GitHub, saved locally instead', 'warning');
+            this.showMessage(`Failed to save to GitHub: ${error.message}`, 'error');
             this.saveExperimentsToLocal();
             return false;
         }
@@ -956,6 +967,55 @@ class ExperimentManager {
         
         this.hideGithubSettings();
         this.showMessage('GitHub sync enabled! Data will now be shared across all users.', 'success');
+    }
+
+    async forceSyncNow() {
+        const tokenInput = document.getElementById('githubToken');
+        const token = tokenInput.value.trim();
+        
+        if (!token) {
+            this.showMessage('Please enter a GitHub token first', 'error');
+            return;
+        }
+
+        // Update token
+        this.githubConfig.token = token;
+        localStorage.setItem('github_token', token);
+
+        try {
+            this.showMessage('🔄 Starting force sync...', 'info');
+            
+            console.log('=== FORCE SYNC DEBUG INFO ===');
+            console.log('Current experiments count:', this.experiments.length);
+            console.log('GitHub config:', {
+                owner: this.githubConfig.owner,
+                repo: this.githubConfig.repo,
+                dataFile: this.githubConfig.dataFile,
+                hasToken: !!this.githubConfig.token
+            });
+
+            // First try to load from GitHub to get the latest SHA
+            console.log('Step 1: Loading existing data from GitHub...');
+            await this.loadExperimentsFromGitHub();
+            
+            // Then save current data
+            console.log('Step 2: Saving current data to GitHub...');
+            const saveSuccess = await this.saveExperimentsToGitHub();
+            
+            if (saveSuccess) {
+                this.showMessage('✅ Force sync completed successfully!', 'success');
+                this.renderExperiments();
+                this.updateStatistics();
+            } else {
+                this.showMessage('❌ Force sync failed. Check console for details.', 'error');
+            }
+
+            console.log('=== FORCE SYNC COMPLETED ===');
+            
+        } catch (error) {
+            console.error('Force sync error:', error);
+            this.showMessage(`❌ Force sync failed: ${error.message}`, 'error');
+        }
     }
 
     // Initialize GitHub settings on load

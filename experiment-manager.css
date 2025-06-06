@@ -718,6 +718,15 @@ section h2 {
     background: #d97706;
 }
 
+.sync-btn {
+    background: #6366f1;
+    color: white;
+}
+
+.sync-btn:hover {
+    background: #5b21b6;
+}
+
 .save-btn {
     background: #10b981;
     color: white;
