@@ -1,5 +1,125 @@
 {
-  "experiments": [],
-  "lastUpdated": "2025-06-06T23:20:39.313Z",
-  "totalExperiments": 0
+  "experiments": [
+    {
+      "id": "1749252051228",
+      "name": "2.2 vs 2.5",
+      "description": "",
+      "folderA": "Pika2.2",
+      "folderB": "Pika2.5",
+      "pairs": [
+        {
+          "baseName": "A_fluffy_white_rabbit_is_riding_a_tiny_red_bicycle_on_a_smooth,_open_road,_surrounded_by_lush_greene",
+          "fileA": "A_fluffy_white_rabbit_is_riding_a_tiny_red_bicycle_on_a_smooth,_open_road,_surrounded_by_lush_greene_seed356767507_share.mp4",
+          "fileB": "A_fluffy_white_rabbit_is_riding_a_tiny_red_bicycle_on_a_smooth,_open_road,_surrounded_by_lush_greene_seed1778241704_share.mp4"
+        },
+        {
+          "baseName": "A_stop-motion_animation_of_a_young_girl_riding_a_bike_on_a_colorful_cobblestone_street._The_animatio",
+          "fileA": "A_stop-motion_animation_of_a_young_girl_riding_a_bike_on_a_colorful_cobblestone_street._The_animatio_seed967990582_share.mp4",
+          "fileB": "A_stop-motion_animation_of_a_young_girl_riding_a_bike_on_a_colorful_cobblestone_street._The_animatio_seed2594153343_share.mp4"
+        },
+        {
+          "baseName": "Camera_zoom_out_show_background_keep_background_still",
+          "fileA": "Camera_zoom_out_show_background_keep_background_still_seed2962639488_share.mp4",
+          "fileB": "Camera_zoom_out_show_background_keep_background_still_seed247825574_share.mp4"
+        },
+        {
+          "baseName": "For_the_first_5_seconds,_she_stands_still_with_a_confident_expression,_holding_her_phone_up_for_a_se",
+          "fileA": "For_the_first_5_seconds,_she_stands_still_with_a_confident_expression,_holding_her_phone_up_for_a_se_seed2248812118_share.mp4",
+          "fileB": "For_the_first_5_seconds,_she_stands_still_with_a_confident_expression,_holding_her_phone_up_for_a_se_seed1457154502_share.mp4"
+        },
+        {
+          "baseName": "Hollywood_cinematic_style,_anamorphic_lens_flares,_moody_lighting,_shallow_depth_of_field,_ultra-det",
+          "fileA": "Hollywood_cinematic_style,_anamorphic_lens_flares,_moody_lighting,_shallow_depth_of_field,_ultra-det_seed2100749902_share.mp4",
+          "fileB": "Hollywood_cinematic_style,_anamorphic_lens_flares,_moody_lighting,_shallow_depth_of_field,_ultra-det_seed319275370_share.mp4"
+        },
+        {
+          "baseName": "The_subject_flexes,_and_their_physique_quickly_grows_in_size,_with_muscles_bulging_and_their_body_ap",
+          "fileA": "The_subject_flexes,_and_their_physique_quickly_grows_in_size,_with_muscles_bulging_and_their_body_ap_seed123415889_share.mp4",
+          "fileB": "The_subject_flexes,_and_their_physique_quickly_grows_in_size,_with_muscles_bulging_and_their_body_ap_seed2008997275_share.mp4"
+        },
+        {
+          "baseName": "______________________",
+          "fileA": "_______________________seed2828720051_share.mp4",
+          "fileB": "_______________________seed2418722488_share.mp4"
+        },
+        {
+          "baseName": "Untitled",
+          "fileA": "_seed2237706291_share.mp4",
+          "fileB": "_seed2253215074_share.mp4"
+        },
+        {
+          "baseName": "a_person_playing_with_fire,_camera_slow_motion",
+          "fileA": "a_person_playing_with_fire,_camera_slow_motion_seed2376148755_share.mp4",
+          "fileB": "a_person_playing_with_fire,_camera_slow_motion_seed728223321_share.mp4"
+        },
+        {
+          "baseName": "ansicht_enfernt_sich_nach_oben_bis_hin_in_die_galaxie",
+          "fileA": "ansicht_enfernt_sich_nach_oben_bis_hin_in_die_galaxie_seed315215982_share (1).mp4",
+          "fileB": "ansicht_enfernt_sich_nach_oben_bis_hin_in_die_galaxie_seed1488507931_share.mp4"
+        },
+        {
+          "baseName": "blockhead_walks_down_the_road,_cinematic_motion_-_he_s_happy_and_on_his_way_to_his_first_job_intervi",
+          "fileA": "blockhead_walks_down_the_road,_cinematic_motion_-_he_s_happy_and_on_his_way_to_his_first_job_intervi_seed1220424182_share.mp4",
+          "fileB": "blockhead_walks_down_the_road,_cinematic_motion_-_he_s_happy_and_on_his_way_to_his_first_job_intervi_seed3676193018_share.mp4"
+        },
+        {
+          "baseName": "embrace,_camera_pull_out_slow_motion",
+          "fileA": "embrace,_camera_pull_out_slow_motion_seed2128269750_share.mp4",
+          "fileB": "embrace,_camera_pull_out_slow_motion_seed376487858_share.mp4"
+        },
+        {
+          "baseName": "in_the_middle_of_the_room_a_huge_scary_black_monster,_shows_how_scary_he_is,_threatens_with_claws._S",
+          "fileA": "in_the_middle_of_the_room_a_huge_scary_black_monster,_shows_how_scary_he_is,_threatens_with_claws._S_seed597871983_share.mp4",
+          "fileB": "in_the_middle_of_the_room_a_huge_scary_black_monster,_shows_how_scary_he_is,_threatens_with_claws._S_seed352803981_share.mp4"
+        },
+        {
+          "baseName": "light_changing_from_day_to_night_hyperlapse,__from_color_to_black_and_white,_camera_slow_motion",
+          "fileA": "light_changing_from_day_to_night_hyperlapse,__from_color_to_black_and_white,_camera_slow_motion_seed1965249495_share.mp4",
+          "fileB": "light_changing_from_day_to_night_hyperlapse,__from_color_to_black_and_white,_camera_slow_motion.mp4"
+        },
+        {
+          "baseName": "light_changing_from_day_to_night_hyperlapse,__from_color_to_black_and_white,_camera_slow_motion",
+          "fileA": "light_changing_from_day_to_night_hyperlapse,__from_color_to_black_and_white,_camera_slow_motion_seed3063414036_share.mp4",
+          "fileB": "light_changing_from_day_to_night_hyperlapse,__from_color_to_black_and_white,_camera_slow_motion.mp4"
+        },
+        {
+          "baseName": "light_changing_from_night_to_day,_from_black_and_white_to_color,_camera_slow_motion",
+          "fileA": "light_changing_from_night_to_day,_from_black_and_white_to_color,_camera_slow_motion_seed2569080236_share.mp4",
+          "fileB": "light_changing_from_night_to_day,_from_black_and_white_to_color,_camera_slow_motion_seed1640294225_share.mp4"
+        },
+        {
+          "baseName": "realistic_film_noir,_tv_glitch_effect,_channel_searching,_high-contrast_black_and_white,_grainy_text",
+          "fileA": "realistic_film_noir,_tv_glitch_effect,_channel_searching,_high-contrast_black_and_white,_grainy_text_seed3223925332_share.mp4",
+          "fileB": "realistic_film_noir,_tv_glitch_effect,_channel_searching,_high-contrast_black_and_white,_grainy_text_seed3511628850_share.mp4"
+        },
+        {
+          "baseName": "slow_motion_pan_around_the_room_as_the_sunlight_slowly_moves",
+          "fileA": "slow_motion_pan_around_the_room_as_the_sunlight_slowly_moves_seed2950340679_share.mp4",
+          "fileB": "slow_motion_pan_around_the_room_as_the_sunlight_slowly_moves_seed899480959_share.mp4"
+        },
+        {
+          "baseName": "sudden_transformation,_the_cute_bear_turns_evil,_eyes_glowing_red,_dark_fog_emerges,_the_forest_beco",
+          "fileA": "sudden_transformation,_the_cute_bear_turns_evil,_eyes_glowing_red,_dark_fog_emerges,_the_forest_beco_seed3442000665_share.mp4",
+          "fileB": "sudden_transformation,_the_cute_bear_turns_evil,_eyes_glowing_red,_dark_fog_emerges,_the_forest_beco_seed2014258508_share.mp4"
+        },
+        {
+          "baseName": "the_cyborg_walking_into_the_camera,_hyper_realistic",
+          "fileA": "the_cyborg_walking_into_the_camera,_hyper_realistic_seed4241554145_share.mp4",
+          "fileB": "the_cyborg_walking_into_the_camera,_hyper_realistic_seed117802853_share.mp4"
+        },
+        {
+          "baseName": "turn_his_hair_into_rainboy_flowing_hair",
+          "fileA": "turn_his_hair_into_rainboy_flowing_hair_seed959718997_share.mp4",
+          "fileB": "turn_his_hair_into_rainboy_flowing_hair_seed2642205765_share.mp4"
+        }
+      ],
+      "results": [],
+      "userSessions": {},
+      "createdAt": "2025-06-06T23:20:51.228Z",
+      "lastModified": "2025-06-06T23:20:51.228Z",
+      "status": "not-started"
+    }
+  ],
+  "lastUpdated": "2025-06-06T23:20:51.405Z",
+  "totalExperiments": 1
 }
