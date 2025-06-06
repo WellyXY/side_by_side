@@ -882,8 +882,32 @@ class VideoComparison {
                     console.log('Found user session:', !!userSession);
                     
                     if (userSession) {
+                        console.log('User session data:', userSession);
+                        console.log('User session rounds:', userSession.rounds);
+                        console.log('Looking for roundId:', this.currentRoundId);
+                        console.log('Available roundIds:', userSession.rounds.map(r => r.roundId));
+                        
                         this.currentRound = userSession.rounds.find(round => round.roundId === this.currentRoundId);
                         console.log('Found round:', !!this.currentRound);
+                        console.log('Round data:', this.currentRound);
+                        
+                        // If round not found, create a new one (data sync fix)
+                        if (!this.currentRound) {
+                            console.log('Round not found, creating new round...');
+                            this.currentRound = {
+                                roundId: this.currentRoundId,
+                                startTime: new Date().toISOString(),
+                                completed: false,
+                                results: []
+                            };
+                            userSession.rounds.push(this.currentRound);
+                            console.log('Created new round:', this.currentRound);
+                            
+                            // Save to GitHub immediately
+                            this.saveCurrentExperiment().catch(error => {
+                                console.error('Error saving new round:', error);
+                            });
+                        }
                     } else {
                         console.log('No user session found for', this.currentUserId);
                         // Reset to avoid confusion
