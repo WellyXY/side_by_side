@@ -431,6 +431,37 @@ section h2 {
     flex-wrap: wrap;
 }
 
+.modal-actions .action-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 120px;
+}
+
+.modal-actions .start-btn {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white;
+}
+
+.modal-actions .start-btn:hover {
+    background: linear-gradient(135deg, #218838, #1da589);
+    transform: translateY(-1px);
+}
+
+.modal-actions .action-btn:not(.start-btn) {
+    background: #6c757d;
+    color: white;
+}
+
+.modal-actions .action-btn:not(.start-btn):hover {
+    background: #5a6268;
+    transform: translateY(-1px);
+}
+
 .cancel-btn {
     background: #6c757d;
     color: white;

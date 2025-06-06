@@ -351,6 +351,17 @@ class ExperimentManager {
         const experiment = this.experiments.find(exp => exp.id === experimentId);
         if (!experiment) return;
         
+        // Find the next available user ID
+        const usedUserIds = Object.keys(experiment.userSessions || {});
+        let suggestedUserId = '';
+        for (let i = 1; i <= 10; i++) {
+            const userId = `user${i}`;
+            if (!usedUserIds.includes(userId)) {
+                suggestedUserId = userId;
+                break;
+            }
+        }
+        
         // Create and show user selection modal
         const modal = document.createElement('div');
         modal.className = 'modal';
@@ -362,7 +373,12 @@ class ExperimentManager {
                     <label for="userId">User ID (1-10):</label>
                     <select id="userId" required>
                         <option value="">Select User ID</option>
-                        ${Array.from({length: 10}, (_, i) => `<option value="user${i+1}">User ${i+1}</option>`).join('')}
+                        ${Array.from({length: 10}, (_, i) => {
+                            const userId = `user${i+1}`;
+                            const isUsed = usedUserIds.includes(userId);
+                            const selected = userId === suggestedUserId ? 'selected' : '';
+                            return `<option value="${userId}" ${selected}>${userId}${isUsed ? ' (已使用)' : ''}</option>`;
+                        }).join('')}
                     </select>
                 </div>
                 <div class="user-stats" id="userStats" style="display: none;">
@@ -379,22 +395,42 @@ class ExperimentManager {
         document.body.appendChild(modal);
         modal.style.display = 'flex';
         
+        // Auto-select suggested user and show stats if available
+        if (suggestedUserId) {
+            this.updateUserStats(experimentId, suggestedUserId);
+        }
+        
         // Bind events
-        document.getElementById('userId').addEventListener('change', (e) => {
+        const userSelect = document.getElementById('userId');
+        const startButton = document.getElementById('startNewRound');
+        const cancelButton = document.getElementById('cancelUserSelection');
+        
+        userSelect.addEventListener('change', (e) => {
             this.updateUserStats(experimentId, e.target.value);
         });
         
-        document.getElementById('startNewRound').addEventListener('click', () => {
-            const userId = document.getElementById('userId').value;
+        startButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const userId = userSelect.value;
+            console.log('Start button clicked, userId:', userId); // Debug info
+            
             if (userId) {
-                this.startUserRound(experimentId, userId);
-                document.body.removeChild(modal);
+                try {
+                    this.startUserRound(experimentId, userId);
+                    document.body.removeChild(modal);
+                } catch (error) {
+                    console.error('Error starting user round:', error);
+                    alert('Error starting round: ' + error.message);
+                }
             } else {
                 alert('Please select a User ID');
             }
         });
         
-        document.getElementById('cancelUserSelection').addEventListener('click', () => {
+        cancelButton.addEventListener('click', (e) => {
+            e.preventDefault();
             document.body.removeChild(modal);
         });
     }
@@ -427,10 +463,21 @@ class ExperimentManager {
     }
 
     startUserRound(experimentId, userId) {
+        console.log('startUserRound called with:', experimentId, userId); // Debug info
+        
         const experiment = this.experiments.find(exp => exp.id === experimentId);
-        if (!experiment) return;
+        if (!experiment) {
+            console.error('Experiment not found:', experimentId);
+            return;
+        }
+        
+        console.log('Found experiment:', experiment.name); // Debug info
         
         // Initialize user session if not exists
+        if (!experiment.userSessions) {
+            experiment.userSessions = {};
+        }
+        
         if (!experiment.userSessions[userId]) {
             experiment.userSessions[userId] = { rounds: [] };
         }
@@ -445,6 +492,10 @@ class ExperimentManager {
         };
         
         experiment.userSessions[userId].rounds.push(newRound);
+        experiment.lastModified = new Date().toISOString();
+        
+        console.log('Created new round:', roundId, 'for user:', userId); // Debug info
+        
         this.saveExperiments();
         
         // Set current session info
@@ -452,7 +503,12 @@ class ExperimentManager {
         localStorage.setItem('currentUserId', userId);
         localStorage.setItem('currentRoundId', roundId);
         
-        window.location.href = 'index.html';
+        console.log('Stored session info, redirecting to index.html'); // Debug info
+        
+        // Add small delay to ensure localStorage is saved
+        setTimeout(() => {
+            window.location.href = 'index.html';
+        }, 100);
     }
 
     restartExperiment(id) {
