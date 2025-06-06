@@ -55,6 +55,11 @@
                 if (window.createManager && window.createManager.githubConfig) {
                     window.createManager.githubConfig.token = token;
                     console.log('✅ CreateExperimentManager token 已更新');
+                    
+                    // 确保配置token
+                    if (window.createManager.ensureTokenConfiguration) {
+                        window.createManager.ensureTokenConfiguration();
+                    }
                     updated = true;
                 }
                 

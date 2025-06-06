@@ -21,9 +21,32 @@ class CreateExperimentManager {
     }
 
     init() {
+        // 确保token配置正确
+        this.ensureTokenConfiguration();
         this.loadFolderFiles();
         this.bindEvents();
         this.validateForm();
+    }
+
+    ensureTokenConfiguration() {
+        // 重新获取token，以防auto-config.js刚刚设置了它
+        const token = localStorage.getItem('github_token');
+        if (token && token !== this.githubConfig.token) {
+            this.githubConfig.token = token;
+            console.log('🔄 Updated GitHub token from localStorage');
+        }
+        
+        // 如果仍然没有token，等待一下再试
+        if (!this.githubConfig.token) {
+            console.log('⏳ Waiting for GitHub token configuration...');
+            setTimeout(() => {
+                const delayedToken = localStorage.getItem('github_token');
+                if (delayedToken) {
+                    this.githubConfig.token = delayedToken;
+                    console.log('✅ GitHub token configured after delay');
+                }
+            }, 500);
+        }
     }
 
     async loadFolderFiles() {
@@ -246,6 +269,13 @@ class CreateExperimentManager {
 
         try {
             console.log('🎬 Starting experiment creation:', experiment.name);
+            
+            // 确保我们有最新的token
+            const currentToken = localStorage.getItem('github_token');
+            if (currentToken) {
+                this.githubConfig.token = currentToken;
+                console.log('🔄 Refreshed GitHub token before saving');
+            }
             
             // Load existing experiments from GitHub only
             let experiments = [];
