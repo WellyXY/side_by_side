@@ -1,3 +1,5 @@
+import { db, doc, getDoc, updateDoc, arrayUnion } from './firebase-config.js';
+
 class VideoComparison {
     constructor() {
         this.videoPairs = [];
@@ -9,44 +11,48 @@ class VideoComparison {
         this.currentUserId = null;
         this.currentRoundId = null;
         this.currentRound = null;
+        this.currentExperimentId = null;
         this.init();
     }
 
     async init() {
-        this.showLoading(true);
-        
-        try {
-            // Wait for auto-config to complete
-            await this.waitForTokenConfiguration();
-            
-            // Check if there's a current experiment
-            await this.checkExperimentMode();
-            
-            // Check if should directly show results
-            const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('showResults') === 'true' && this.currentExperiment) {
-                // Load video pairs first to ensure we have the data structure
-                await this.loadVideoPairs();
-                this.showResults();
-                this.showLoading(false);
-                return;
-            }
-            
-            await this.loadVideoPairs();
-            this.showLoading(false);
-            
-            if (this.videoPairs.length > 0) {
-                this.loadCurrentPair();
-                this.updateUI();
-                this.bindEvents();
-            } else {
-                this.showMessage('No matching video pairs found', 'error');
-            }
-        } catch (error) {
-            console.error('Initialization error:', error);
-            this.showMessage('An error occurred while loading. Please refresh the page.', 'error');
-            this.showLoading(false);
+        this.currentExperimentId = localStorage.getItem('currentExperimentId');
+        if (this.currentExperimentId) {
+            await this.loadExperimentFromFirebase();
+            this.currentUserId = localStorage.getItem('currentUserId');
+            this.currentRoundId = localStorage.getItem('currentRoundId');
+            this.setupExperiment();
         }
+    }
+
+    async loadExperimentFromFirebase() {
+        const docRef = doc(db, "experiments", this.currentExperimentId);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+            this.currentExperiment = { id: docSnap.id, ...docSnap.data() };
+        } else {
+            console.error("No such document!");
+        }
+    }
+
+    setupExperiment() {
+        // Find or create the current round
+        if (!this.currentExperiment.userSessions) this.currentExperiment.userSessions = {};
+        if (!this.currentExperiment.userSessions[this.currentUserId]) {
+            this.currentExperiment.userSessions[this.currentUserId] = { rounds: [] };
+        }
+        let userSession = this.currentExperiment.userSessions[this.currentUserId];
+        this.currentRound = userSession.rounds.find(r => r.roundId === this.currentRoundId);
+        if (!this.currentRound) {
+            this.currentRound = {
+                roundId: this.currentRoundId,
+                startTime: new Date().toISOString(),
+                completed: false,
+                results: []
+            };
+            userSession.rounds.push(this.currentRound);
+        }
+        // ... (rest of UI setup logic) ...
     }
 
     async waitForTokenConfiguration() {
@@ -1057,8 +1063,4 @@ class VideoComparison {
     }
 }
 
-// Initialize application
-let videoComparison;
-document.addEventListener('DOMContentLoaded', () => {
-    videoComparison = new VideoComparison();
-}); 
+export default new VideoComparison(); 

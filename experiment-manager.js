@@ -1,3 +1,5 @@
+import { db, collection, getDocs, doc, setDoc, addDoc, deleteDoc } from './firebase-config.js';
+
 class ExperimentManager {
     constructor() {
         this.experiments = [];
@@ -81,17 +83,9 @@ class ExperimentManager {
         };
     }
 
-    init() {
+    async init() {
         this.bindEvents();
-        this.initGithubSettings(); // Load token from localStorage and update UI
-        // Do not auto-load experiments. Wait for user action or valid token.
-        // Check for token and prompt user if missing.
-        if (!localStorage.getItem('github_token')) {
-            this.showMessage('Welcome! Please configure your GitHub token to get started.', 'info');
-            this.showGithubSettings();
-        } else {
-            this.loadExperiments();
-        }
+        this.loadExperiments();
     }
 
     // 设置页面可见性同步 - 确保不同浏览器数据一致
@@ -310,7 +304,7 @@ class ExperimentManager {
         }
     }
 
-    createExperiment() {
+    async createExperiment() {
         const name = document.getElementById('experimentName').value.trim();
         const description = document.getElementById('experimentDescription').value.trim();
         const folderA = document.getElementById('folderA').value;
@@ -840,27 +834,26 @@ class ExperimentManager {
     }
 
     async loadExperiments() {
-        this.showLoading('Loading experiments from GitHub...');
-        const data = await window.githubDataManager.loadData();
-        if (data && data.content && data.content.experiments) {
-            this.experiments = data.content.experiments;
-            this.renderExperiments();
-            this.updateStatistics();
-        } else {
-            this.showMessage('Failed to load experiments.', 'error');
-        }
+        this.showLoading('Loading experiments from Firebase...');
+        const querySnapshot = await getDocs(collection(db, "experiments"));
+        this.experiments = [];
+        querySnapshot.forEach((doc) => {
+            this.experiments.push({ id: doc.id, ...doc.data() });
+        });
+        this.renderExperiments();
+        this.updateStatistics();
         this.hideLoading();
     }
 
     async saveExperiments() {
-        this.showLoading('Saving experiments to GitHub...');
+        this.showLoading('Saving experiments to Firebase...');
         const dataToSave = {
             experiments: this.experiments,
             lastUpdated: new Date().toISOString()
         };
         const success = await window.githubDataManager.saveData(dataToSave, 'Update experiments list');
         if (!success) {
-            this.showMessage('Failed to save experiments to GitHub.', 'error');
+            this.showMessage('Failed to save experiments to Firebase.', 'error');
         }
         this.hideLoading();
     }
@@ -1021,10 +1014,8 @@ class ExperimentManager {
     }
 }
 
-// Initialize experiment manager
-const experimentManager = new ExperimentManager();
-// 暴露到window对象供auto-config.js访问
-window.experimentManager = experimentManager;
+// Export for module usage
+export default new ExperimentManager();
 
 document.addEventListener('DOMContentLoaded', () => {
     experimentManager.init();

@@ -122,9 +122,10 @@
         </div>
     </div>
 
-    <script>
-        document.write(`<script src="auto-config.js?v=${new Date().getTime()}"><\/script>`);
-        document.write(`<script src="experiment-manager.js?v=${new Date().getTime()}"><\/script>`);
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+        // The main script is now a module to use imports
+        import E from './experiment-manager.js';
     </script>
 </body>
 </html> 
