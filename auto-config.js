@@ -30,8 +30,8 @@
     
     // 更新管理器实例的token
     function updateManagerTokens(token) {
-        // 等待管理器实例创建完成后更新
-        setTimeout(() => {
+        // 立即更新，然后定期重试确保更新成功
+        function tryUpdate() {
             try {
                 // 更新 ExperimentManager 实例
                 if (window.experimentManager && window.experimentManager.githubConfig) {
@@ -47,7 +47,15 @@
             } catch (error) {
                 console.warn('更新管理器token失败:', error);
             }
-        }, 100);
+        }
+        
+        // 立即尝试更新
+        tryUpdate();
+        
+        // 延迟重试确保管理器实例已创建
+        setTimeout(tryUpdate, 100);
+        setTimeout(tryUpdate, 500);
+        setTimeout(tryUpdate, 1000);
     }
     
     // 页面加载完成后执行

@@ -10,6 +10,14 @@ class CreateExperimentManager {
             dataFile: 'experiments-data.json',
             token: localStorage.getItem('github_token')
         };
+        
+        // 调试信息
+        const token = localStorage.getItem('github_token');
+        if (token) {
+            console.log('GitHub token loaded from localStorage:', token.substring(0, 10) + '...');
+        } else {
+            console.warn('No GitHub token found in localStorage');
+        }
     }
 
     init() {

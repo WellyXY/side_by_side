@@ -238,8 +238,20 @@ class VideoComparison {
         const rightLabel = document.getElementById('rightLabel');
         const promptText = document.getElementById('promptText');
 
-        leftVideo.src = pair.leftVideo.path;
-        rightVideo.src = pair.rightVideo.path;
+        // 构建视频源URL - 支持本地和在线环境
+        const getVideoSrc = (path) => {
+            // 检查是否为在线环境 (Vercel)
+            if (window.location.hostname.includes('vercel.app') || window.location.hostname.includes('github.io')) {
+                // 在线环境：使用GitHub raw文件URL
+                return `https://github.com/WellyXY/side_by_side/raw/main/${encodeURIComponent(path)}`;
+            } else {
+                // 本地环境：直接使用相对路径
+                return path;
+            }
+        };
+        
+        leftVideo.src = getVideoSrc(pair.leftVideo.path);
+        rightVideo.src = getVideoSrc(pair.rightVideo.path);
         
         // Display prompt information (convert filename to readable prompt)
         promptText.textContent = this.formatPrompt(pair.baseName);

@@ -1120,7 +1120,9 @@ class ExperimentManager {
         const savedToken = localStorage.getItem('github_token');
         if (savedToken) {
             this.githubConfig.token = savedToken;
-            console.log('GitHub token loaded from localStorage');
+            console.log('GitHub token loaded from localStorage:', savedToken.substring(0, 10) + '...');
+        } else {
+            console.warn('No GitHub token found in localStorage');
         }
     }
 }
