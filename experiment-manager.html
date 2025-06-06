@@ -122,7 +122,9 @@
         </div>
     </div>
 
-    <script src="auto-config.js"></script>
-    <script src="experiment-manager.js"></script>
+    <script>
+        document.write(`<script src="auto-config.js?v=${new Date().getTime()}"><\/script>`);
+        document.write(`<script src="experiment-manager.js?v=${new Date().getTime()}"><\/script>`);
+    </script>
 </body>
 </html> 

@@ -120,7 +120,9 @@
         <div class="message" id="message"></div>
     </div>
 
-    <script src="auto-config.js"></script>
-    <script src="script.js"></script>
+    <script>
+        document.write(`<script src="auto-config.js?v=${new Date().getTime()}"><\/script>`);
+        document.write(`<script src="script.js?v=${new Date().getTime()}"><\/script>`);
+    </script>
 </body>
 </html> 
