@@ -422,6 +422,7 @@ class ExperimentManager {
         let totalRatings = 0;
         let completedRounds = 0;
         
+        // Count ratings from user sessions
         Object.values(userSessions).forEach(userSession => {
             totalRounds += userSession.rounds.length;
             userSession.rounds.forEach(round => {
@@ -430,6 +431,22 @@ class ExperimentManager {
                     completedRounds++;
                 }
             });
+        });
+        
+        // Also count direct results array if it exists
+        if (experiment.results && Array.isArray(experiment.results)) {
+            totalRatings += experiment.results.length;
+            console.log('Added', experiment.results.length, 'results from experiment.results array');
+        }
+        
+        console.log('Experiment stats calculation:', {
+            experimentId: experiment.id,
+            uniqueUsers,
+            totalRounds,
+            totalRatings,
+            completedRounds,
+            hasDirectResults: !!(experiment.results && experiment.results.length > 0),
+            hasUserSessions: Object.keys(userSessions).length > 0
         });
         
         return {
