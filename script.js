@@ -1022,28 +1022,20 @@ class VideoComparison {
 
     async saveCurrentExperiment() {
         if (!this.currentExperiment) return;
-        
-        // Get current experiments from GitHub (not local storage)
-        let experiments = [];
+
+        console.log("==> saveCurrentExperiment: Saving current experiment data...");
         try {
-            const currentData = await this.loadExperimentsFromGitHub();
-            experiments = currentData.experiments || [];
+            const success = await this.saveExperimentsToGitHub(this.currentExperiment);
+            if(success) {
+                console.log("==> saveCurrentExperiment: Successfully saved to GitHub.");
+                // Optionally update local cache after a definite successful save
+                // This part can be tricky due to race conditions.
+                // For now, we rely on reading fresh from GitHub.
+            } else {
+                 console.error("==> saveCurrentExperiment: Failed to save to GitHub.");
+            }
         } catch (error) {
-            console.error('Error loading current experiments:', error);
-            // Fall back to local storage as last resort
-            experiments = JSON.parse(localStorage.getItem('sbs_experiments') || '[]');
-        }
-        
-        const index = experiments.findIndex(exp => exp.id === this.currentExperiment.id);
-        
-        if (index >= 0) {
-            experiments[index] = this.currentExperiment;
-            
-            // Save to GitHub directly
-            await this.saveExperimentsToGitHub(experiments);
-            
-            // Update local cache only after successful GitHub save
-            localStorage.setItem('sbs_experiments', JSON.stringify(experiments));
+            console.error('Error in saveCurrentExperiment:', error);
         }
     }
 
@@ -1082,7 +1074,7 @@ class VideoComparison {
         }
     }
 
-    async saveExperimentsToGitHub(experiments) {
+    async saveExperimentsToGitHub(updatedExperiment) {
         const savedToken = localStorage.getItem('github_token');
         if (!savedToken) {
             console.log('No GitHub token available, cannot save');
@@ -1096,9 +1088,9 @@ class VideoComparison {
         };
 
         try {
-            console.log('Saving experiment results to GitHub...');
+            console.log('Fetching latest data from GitHub before saving...');
             
-            // First get the current file SHA
+            // 1. Get the current file content and SHA
             const getResponse = await fetch(`https://api.github.com/repos/${githubConfig.owner}/${githubConfig.repo}/contents/${githubConfig.dataFile}`, {
                 headers: {
                     'Authorization': `token ${savedToken}`,
@@ -1106,29 +1098,44 @@ class VideoComparison {
                 }
             });
 
+            let experiments = [];
             let sha = null;
+
             if (getResponse.ok) {
                 const fileData = await getResponse.json();
                 sha = fileData.sha;
+                const content = JSON.parse(atob(fileData.content));
+                experiments = content.experiments || [];
+            } else if (getResponse.status !== 404) {
+                console.error('Failed to get existing file from GitHub:', getResponse.status);
+                return false;
             }
 
-            const content = {
+            // 2. Merge the changes
+            const index = experiments.findIndex(exp => exp.id === updatedExperiment.id);
+            if (index >= 0) {
+                // Update existing experiment
+                experiments[index] = updatedExperiment;
+            } else {
+                // Add new experiment (shouldn't happen in this flow, but good for robustness)
+                experiments.push(updatedExperiment);
+            }
+            
+            const contentToSave = {
                 experiments: experiments,
                 lastUpdated: new Date().toISOString(),
                 totalExperiments: experiments.length
             };
 
-            const encodedContent = btoa(JSON.stringify(content, null, 2));
+            const encodedContent = btoa(JSON.stringify(contentToSave, null, 2));
 
             const requestBody = {
                 message: `Update experiment results - ${new Date().toISOString()}`,
-                content: encodedContent
+                content: encodedContent,
+                sha: sha // sha must be provided for updates
             };
 
-            if (sha) {
-                requestBody.sha = sha;
-            }
-
+            // 3. PUT the updated content back to GitHub
             const putResponse = await fetch(`https://api.github.com/repos/${githubConfig.owner}/${githubConfig.repo}/contents/${githubConfig.dataFile}`, {
                 method: 'PUT',
                 headers: {
@@ -1143,7 +1150,8 @@ class VideoComparison {
                 console.log('Successfully saved experiment results to GitHub');
                 return true;
             } else {
-                console.warn('Failed to save to GitHub:', putResponse.status);
+                const errorData = await putResponse.json();
+                console.error('Failed to save to GitHub:', putResponse.status, errorData.message);
                 return false;
             }
         } catch (error) {
