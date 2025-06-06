@@ -15,29 +15,56 @@ class VideoComparison {
     async init() {
         this.showLoading(true);
         
-        // Check if there's a current experiment
-        this.checkExperimentMode();
-        
-        // Check if should directly show results
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('showResults') === 'true' && this.currentExperiment) {
-            // Load video pairs first to ensure we have the data structure
+        try {
+            // Wait for auto-config to complete
+            await this.waitForTokenConfiguration();
+            
+            // Check if there's a current experiment
+            this.checkExperimentMode();
+            
+            // Check if should directly show results
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('showResults') === 'true' && this.currentExperiment) {
+                // Load video pairs first to ensure we have the data structure
+                await this.loadVideoPairs();
+                this.showResults();
+                this.showLoading(false);
+                return;
+            }
+            
             await this.loadVideoPairs();
-            this.showResults();
             this.showLoading(false);
-            return;
+            
+            if (this.videoPairs.length > 0) {
+                this.loadCurrentPair();
+                this.updateUI();
+                this.bindEvents();
+            } else {
+                this.showMessage('No matching video pairs found', 'error');
+            }
+        } catch (error) {
+            console.error('Initialization error:', error);
+            this.showMessage('An error occurred while loading. Please refresh the page.', 'error');
+            this.showLoading(false);
+        }
+    }
+
+    async waitForTokenConfiguration() {
+        // Wait for auto-config.js to complete
+        let attempts = 0;
+        const maxAttempts = 50; // 5 seconds max
+        
+        while (attempts < maxAttempts) {
+            if (localStorage.getItem('github_token')) {
+                console.log('GitHub token configured successfully');
+                return;
+            }
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            attempts++;
         }
         
-        await this.loadVideoPairs();
-        this.showLoading(false);
-        
-        if (this.videoPairs.length > 0) {
-            this.loadCurrentPair();
-            this.updateUI();
-            this.bindEvents();
-        } else {
-            this.showMessage('No matching video pairs found', 'error');
-        }
+        console.warn('GitHub token configuration timed out');
     }
 
     async loadVideoPairs() {
@@ -933,23 +960,35 @@ class VideoComparison {
     async saveCurrentExperiment() {
         if (!this.currentExperiment) return;
         
-        const experiments = JSON.parse(localStorage.getItem('sbs_experiments') || '[]');
+        // Get current experiments from GitHub (not local storage)
+        let experiments = [];
+        try {
+            const currentData = await this.loadExperimentsFromGitHub();
+            experiments = currentData.experiments || [];
+        } catch (error) {
+            console.error('Error loading current experiments:', error);
+            // Fall back to local storage as last resort
+            experiments = JSON.parse(localStorage.getItem('sbs_experiments') || '[]');
+        }
+        
         const index = experiments.findIndex(exp => exp.id === this.currentExperiment.id);
         
         if (index >= 0) {
             experiments[index] = this.currentExperiment;
-            localStorage.setItem('sbs_experiments', JSON.stringify(experiments));
             
-            // Try to sync with GitHub if token is available
-            await this.syncWithGitHub(experiments);
+            // Save to GitHub directly
+            await this.saveExperimentsToGitHub(experiments);
+            
+            // Update local cache only after successful GitHub save
+            localStorage.setItem('sbs_experiments', JSON.stringify(experiments));
         }
     }
 
-    async syncWithGitHub(experiments) {
+    async loadExperimentsFromGitHub() {
         const savedToken = localStorage.getItem('github_token');
         if (!savedToken) {
-            console.log('No GitHub token available, skipping sync');
-            return;
+            console.log('No GitHub token available for loading');
+            return { experiments: [] };
         }
 
         const githubConfig = {
@@ -959,7 +998,42 @@ class VideoComparison {
         };
 
         try {
-            console.log('Syncing experiment results to GitHub...');
+            const response = await fetch(`https://api.github.com/repos/${githubConfig.owner}/${githubConfig.repo}/contents/${githubConfig.dataFile}`, {
+                headers: {
+                    'Authorization': `token ${savedToken}`,
+                    'Accept': 'application/vnd.github.v3+json'
+                }
+            });
+
+            if (response.ok) {
+                const fileData = await response.json();
+                const content = JSON.parse(atob(fileData.content));
+                return content;
+            } else {
+                console.warn('Failed to load from GitHub:', response.status);
+                return { experiments: [] };
+            }
+        } catch (error) {
+            console.error('Error loading from GitHub:', error);
+            return { experiments: [] };
+        }
+    }
+
+    async saveExperimentsToGitHub(experiments) {
+        const savedToken = localStorage.getItem('github_token');
+        if (!savedToken) {
+            console.log('No GitHub token available, cannot save');
+            return false;
+        }
+
+        const githubConfig = {
+            owner: 'WellyXY',
+            repo: 'side_by_side',
+            dataFile: 'experiments-data.json'
+        };
+
+        try {
+            console.log('Saving experiment results to GitHub...');
             
             // First get the current file SHA
             const getResponse = await fetch(`https://api.github.com/repos/${githubConfig.owner}/${githubConfig.repo}/contents/${githubConfig.dataFile}`, {
@@ -977,7 +1051,8 @@ class VideoComparison {
 
             const content = {
                 experiments: experiments,
-                lastUpdated: new Date().toISOString()
+                lastUpdated: new Date().toISOString(),
+                totalExperiments: experiments.length
             };
 
             const encodedContent = btoa(JSON.stringify(content, null, 2));
@@ -1002,12 +1077,15 @@ class VideoComparison {
             });
 
             if (putResponse.ok) {
-                console.log('Successfully synced experiment results to GitHub');
+                console.log('Successfully saved experiment results to GitHub');
+                return true;
             } else {
-                console.warn('Failed to sync to GitHub:', putResponse.status);
+                console.warn('Failed to save to GitHub:', putResponse.status);
+                return false;
             }
         } catch (error) {
-            console.error('Error syncing to GitHub:', error);
+            console.error('Error saving to GitHub:', error);
+            return false;
         }
     }
 }

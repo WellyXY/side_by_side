@@ -464,8 +464,8 @@ class ExperimentManager {
         // Always show "Join Test" button for new users or new rounds
         buttons.push(`<button class="action-btn start-btn" onclick="experimentManager.startExperiment('${experiment.id}')">Join Test</button>`);
         
-        // Show results if there are any ratings
-        if (stats.totalRatings > 0) {
+        // Show results if there are any ratings OR if experiment has user sessions (temporary fix)
+        if (stats.totalRatings > 0 || stats.uniqueUsers > 0) {
             buttons.push(`<button class="action-btn view-btn" onclick="experimentManager.viewResults('${experiment.id}')">View Results</button>`);
         }
         
