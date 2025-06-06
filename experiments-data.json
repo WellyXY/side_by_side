@@ -113,7 +113,26 @@
           "fileB": "turn_his_hair_into_rainboy_flowing_hair_seed959718997_share.mp4"
         }
       ],
-      "results": [],
+      "results": [
+        {
+          "userId": "user1",
+          "roundId": "round_1749242936617",
+          "pairIndex": 0,
+          "baseName": "A_fluffy_white_rabbit_is_riding_a_tiny_red_bicycle_on_a_smooth,_open_road,_surrounded_by_lush_greene",
+          "leftVideo": {
+            "path": "Pika2.5/A_fluffy_white_rabbit_is_riding_a_tiny_red_bicycle_on_a_smooth,_open_road,_surrounded_by_lush_greene_seed1778241704_share.mp4",
+            "version": "Pika2.5",
+            "originalFileName": "A_fluffy_white_rabbit_is_riding_a_tiny_red_bicycle_on_a_smooth,_open_road,_surrounded_by_lush_greene_seed1778241704_share.mp4"
+          },
+          "rightVideo": {
+            "path": "Pika2.2/A_fluffy_white_rabbit_is_riding_a_tiny_red_bicycle_on_a_smooth,_open_road,_surrounded_by_lush_greene_seed356767507_share.mp4",
+            "version": "Pika2.2",
+            "originalFileName": "A_fluffy_white_rabbit_is_riding_a_tiny_red_bicycle_on_a_smooth,_open_road,_surrounded_by_lush_greene_seed356767507_share.mp4"
+          },
+          "rating": -2,
+          "timestamp": "2025-06-06T20:48:57.965Z"
+        }
+      ],
       "userSessions": {
         "user1": {
           "rounds": [
@@ -139,7 +158,26 @@
               "roundId": "round_1749242936617",
               "startTime": "2025-06-06T20:48:57.120Z",
               "completed": false,
-              "results": []
+              "results": [
+                {
+                  "userId": "user1",
+                  "roundId": "round_1749242936617",
+                  "pairIndex": 0,
+                  "baseName": "A_fluffy_white_rabbit_is_riding_a_tiny_red_bicycle_on_a_smooth,_open_road,_surrounded_by_lush_greene",
+                  "leftVideo": {
+                    "path": "Pika2.5/A_fluffy_white_rabbit_is_riding_a_tiny_red_bicycle_on_a_smooth,_open_road,_surrounded_by_lush_greene_seed1778241704_share.mp4",
+                    "version": "Pika2.5",
+                    "originalFileName": "A_fluffy_white_rabbit_is_riding_a_tiny_red_bicycle_on_a_smooth,_open_road,_surrounded_by_lush_greene_seed1778241704_share.mp4"
+                  },
+                  "rightVideo": {
+                    "path": "Pika2.2/A_fluffy_white_rabbit_is_riding_a_tiny_red_bicycle_on_a_smooth,_open_road,_surrounded_by_lush_greene_seed356767507_share.mp4",
+                    "version": "Pika2.2",
+                    "originalFileName": "A_fluffy_white_rabbit_is_riding_a_tiny_red_bicycle_on_a_smooth,_open_road,_surrounded_by_lush_greene_seed356767507_share.mp4"
+                  },
+                  "rating": -2,
+                  "timestamp": "2025-06-06T20:48:57.965Z"
+                }
+              ]
             }
           ]
         },
@@ -205,10 +243,10 @@
         }
       },
       "createdAt": "2025-06-06T19:30:53.560Z",
-      "lastModified": "2025-06-06T20:47:36.939Z",
+      "lastModified": "2025-06-06T20:48:57.965Z",
       "status": "not-started"
     }
   ],
-  "lastUpdated": "2025-06-06T20:48:57.310Z",
+  "lastUpdated": "2025-06-06T20:48:58.143Z",
   "totalExperiments": 1
 }
