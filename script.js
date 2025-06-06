@@ -544,22 +544,76 @@ class VideoComparison {
         let validRatings = [];
         let userStats = {};
         
-        if (this.currentExperiment && this.currentExperiment.results) {
-            // Use ALL experiment results from all users and rounds
-            validRatings = this.currentExperiment.results.map(r => r.rating).filter(r => r !== null);
+        console.log('=== RESULTS DEBUG ===');
+        console.log('Current experiment:', this.currentExperiment);
+        console.log('Current ratings:', this.ratings);
+        
+        if (this.currentExperiment) {
+            console.log('Experiment results:', this.currentExperiment.results);
+            console.log('Experiment user sessions:', this.currentExperiment.userSessions);
+            
+            // Try to get results from multiple sources
+            let allResults = [];
+            
+            // 1. Direct results array
+            if (this.currentExperiment.results && this.currentExperiment.results.length > 0) {
+                allResults = [...this.currentExperiment.results];
+                console.log('Found results in experiment.results:', allResults.length);
+            }
+            
+            // 2. User sessions results
+            if (this.currentExperiment.userSessions) {
+                Object.values(this.currentExperiment.userSessions).forEach(userSession => {
+                    if (userSession.rounds) {
+                        userSession.rounds.forEach(round => {
+                            if (round.results) {
+                                allResults = allResults.concat(round.results);
+                            }
+                        });
+                    }
+                });
+                console.log('Total results after checking user sessions:', allResults.length);
+            }
+            
+            // 3. Current session ratings as fallback
+            if (allResults.length === 0 && this.ratings) {
+                console.log('No experiment results found, using current ratings');
+                this.ratings.forEach((rating, index) => {
+                    if (rating !== null) {
+                        allResults.push({
+                            userId: this.currentUserId || 'current',
+                            roundId: this.currentRoundId || 'current',
+                            pairIndex: index,
+                            rating: rating,
+                            timestamp: new Date().toISOString()
+                        });
+                    }
+                });
+            }
+            
+            // Filter valid ratings
+            validRatings = allResults.map(r => r.rating).filter(r => r !== null && r !== undefined);
+            console.log('Valid ratings found:', validRatings.length, validRatings);
             
             // Calculate per-user statistics
-            this.currentExperiment.results.forEach(result => {
-                if (!userStats[result.userId]) {
-                    userStats[result.userId] = { ratings: [], rounds: new Set() };
+            allResults.forEach(result => {
+                if (result.rating !== null && result.rating !== undefined) {
+                    const userId = result.userId || 'unknown';
+                    if (!userStats[userId]) {
+                        userStats[userId] = { ratings: [], rounds: new Set() };
+                    }
+                    userStats[userId].ratings.push(result.rating);
+                    userStats[userId].rounds.add(result.roundId || 'unknown');
                 }
-                userStats[result.userId].ratings.push(result.rating);
-                userStats[result.userId].rounds.add(result.roundId);
             });
         } else {
             // Use current ratings
             validRatings = this.ratings.filter(r => r !== null);
+            console.log('No experiment mode, using current ratings:', validRatings.length);
         }
+        
+        console.log('Final valid ratings:', validRatings.length);
+        console.log('User stats:', userStats);
         
         // Calculate wins based on the specific comparison
         let leftWins, rightWins, ties;
