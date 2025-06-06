@@ -122,6 +122,12 @@
               "startTime": "2025-06-06T19:31:00.797Z",
               "completed": false,
               "results": []
+            },
+            {
+              "roundId": "round_1749242235291",
+              "startTime": "2025-06-06T20:37:15.291Z",
+              "completed": false,
+              "results": []
             }
           ]
         },
@@ -187,10 +193,10 @@
         }
       },
       "createdAt": "2025-06-06T19:30:53.560Z",
-      "lastModified": "2025-06-06T20:34:54.879Z",
+      "lastModified": "2025-06-06T20:37:15.291Z",
       "status": "not-started"
     }
   ],
-  "lastUpdated": "2025-06-06T20:34:54.879Z",
+  "lastUpdated": "2025-06-06T20:37:15.291Z",
   "totalExperiments": 1
 }
