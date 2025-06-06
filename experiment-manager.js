@@ -838,153 +838,29 @@ class ExperimentManager {
     }
 
     async loadExperiments() {
-        // 仅从 GitHub 加载数据，不使用本地存储
-        console.log('🌐 仅从GitHub加载数据，忽略本地存储...');
-        await this.loadExperimentsFromGitHub();
-        this.renderExperiments();
-        this.updateStatistics();
+        this.showLoading('Loading experiments from GitHub...');
+        const data = await window.githubDataManager.loadData();
+        if (data && data.content && data.content.experiments) {
+            this.experiments = data.content.experiments;
+            this.renderExperiments();
+            this.updateStatistics();
+        } else {
+            this.showMessage('Failed to load experiments.', 'error');
+        }
+        this.hideLoading();
     }
 
     async saveExperiments() {
-        // 仅保存到 GitHub，本地存储作为缓存
-        console.log('💾 仅保存到GitHub...');
-        const success = await this.saveExperimentsToGitHub();
-        if (success) {
-            // 成功保存到GitHub后，更新本地缓存
-            this.saveExperimentsToLocal();
+        this.showLoading('Saving experiments to GitHub...');
+        const dataToSave = {
+            experiments: this.experiments,
+            lastUpdated: new Date().toISOString()
+        };
+        const success = await window.githubDataManager.saveData(dataToSave, 'Update experiments list');
+        if (!success) {
+            this.showMessage('Failed to save experiments to GitHub.', 'error');
         }
-        return success;
-    }
-
-    // GitHub API 相关方法
-    async loadExperimentsFromGitHub() {
-        try {
-            console.log('Loading experiments from GitHub...');
-            
-            // 首先尝试从 GitHub 加载数据
-            const response = await fetch(`https://api.github.com/repos/${this.githubConfig.owner}/${this.githubConfig.repo}/contents/${this.githubConfig.dataFile}`, {
-                headers: this.githubConfig.token ? {
-                    'Authorization': `token ${this.githubConfig.token}`,
-                    'Accept': 'application/vnd.github.v3+json'
-                } : {
-                    'Accept': 'application/vnd.github.v3+json'
-                }
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                const content = JSON.parse(atob(data.content));
-                
-                // 仅使用GitHub数据
-                this.experiments = content.experiments || [];
-                this.githubConfig.sha = data.sha;  // 保存 SHA 用于更新
-                
-                console.log('✅ 成功从GitHub加载数据:', this.experiments.length, '个实验');
-                console.log('📅 GitHub数据最后更新:', content.lastUpdated);
-                
-                // 更新本地存储为GitHub数据的副本
-                this.saveExperimentsToLocal();
-                
-                return true;
-            } else if (response.status === 404) {
-                console.log('Experiments file not found on GitHub, will create new one');
-                this.experiments = [];
-                return true;
-            } else {
-                throw new Error(`GitHub API error: ${response.status}`);
-            }
-        } catch (error) {
-            console.error('Failed to load from GitHub:', error);
-            // 不使用本地数据，保持空数组
-            this.experiments = [];
-            console.log('❌ GitHub加载失败，使用空数据列表');
-            return false;
-        }
-    }
-
-    async saveExperimentsToGitHub() {
-        if (!this.githubConfig.token) {
-            console.warn('No GitHub token provided, falling back to local storage');
-            this.saveExperimentsToLocal();
-            return false;
-        }
-
-        try {
-            console.log('Saving experiments to GitHub...');
-            console.log('Number of experiments to save:', this.experiments.length);
-            
-            const content = {
-                experiments: this.experiments,
-                lastUpdated: new Date().toISOString(),
-                totalExperiments: this.experiments.length
-            };
-
-            const encodedContent = btoa(JSON.stringify(content, null, 2));
-
-            const requestBody = {
-                message: `Update experiments data - ${new Date().toISOString()}`,
-                content: encodedContent
-            };
-
-            // 如果文件已存在，需要提供 SHA
-            if (this.githubConfig.sha) {
-                requestBody.sha = this.githubConfig.sha;
-                console.log('Updating existing file with SHA:', this.githubConfig.sha);
-            } else {
-                console.log('Creating new file');
-            }
-
-            const response = await fetch(`https://api.github.com/repos/${this.githubConfig.owner}/${this.githubConfig.repo}/contents/${this.githubConfig.dataFile}`, {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `token ${this.githubConfig.token}`,
-                    'Accept': 'application/vnd.github.v3+json',
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(requestBody)
-            });
-
-            console.log('GitHub API response status:', response.status);
-
-            if (response.ok) {
-                const result = await response.json();
-                this.githubConfig.sha = result.content.sha;
-                console.log('Successfully saved experiments to GitHub');
-                console.log('New SHA:', this.githubConfig.sha);
-                this.showMessage('Experiments saved to GitHub successfully! 🎉', 'success');
-                return true;
-            } else {
-                const errorText = await response.text();
-                console.error('GitHub API error response:', errorText);
-                throw new Error(`GitHub API error: ${response.status} - ${errorText}`);
-            }
-        } catch (error) {
-            console.error('Failed to save to GitHub:', error);
-            this.showMessage(`Failed to save to GitHub: ${error.message}`, 'error');
-            this.saveExperimentsToLocal();
-            return false;
-        }
-    }
-
-    // 本地存储方法（作为备份）
-    loadExperimentsFromLocal() {
-        try {
-            const saved = localStorage.getItem('sbs_experiments');
-            this.experiments = saved ? JSON.parse(saved) : [];
-            console.log('Loaded experiments from local storage:', this.experiments.length);
-        } catch (error) {
-            console.error('Error loading from local storage:', error);
-            this.experiments = [];
-        }
-    }
-
-    saveExperimentsToLocal() {
-        try {
-            localStorage.setItem('sbs_experiments', JSON.stringify(this.experiments));
-            console.log('Saved experiments to local storage');
-        } catch (error) {
-            console.error('Error saving to local storage:', error);
-        }
+        this.hideLoading();
     }
 
     showMessage(text, type = 'info') {
@@ -1120,7 +996,7 @@ class ExperimentManager {
         localStorage.setItem('github_token', token);
         
         // Try to load existing data from GitHub
-        await this.loadExperimentsFromGitHub();
+        await this.loadExperiments();
         this.renderExperiments();
         this.updateStatistics();
         
@@ -1155,11 +1031,11 @@ class ExperimentManager {
 
             // First try to load from GitHub to get the latest SHA
             console.log('Step 1: Loading existing data from GitHub...');
-            await this.loadExperimentsFromGitHub();
+            await this.loadExperiments();
             
             // Then save current data
             console.log('Step 2: Saving current data to GitHub...');
-            const saveSuccess = await this.saveExperimentsToGitHub();
+            const saveSuccess = await this.saveExperiments();
             
             if (saveSuccess) {
                 this.showMessage('✅ Force sync completed successfully!', 'success');

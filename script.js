@@ -1012,15 +1012,37 @@ class VideoComparison {
 
     async saveCurrentExperiment() {
         if (!this.currentExperiment) return;
-
+        
         console.log("==> saveCurrentExperiment: Saving current experiment data...");
         try {
-            const success = await this.saveExperimentsToGitHub(this.currentExperiment);
-            if(success) {
-                console.log("==> saveCurrentExperiment: Successfully saved to GitHub.");
-                // Optionally update local cache after a definite successful save
-                // This part can be tricky due to race conditions.
-                // For now, we rely on reading fresh from GitHub.
+            // The complete, latest data structure is assembled in memory.
+            // Now, we need to get the full, fresh dataset from GitHub,
+            // merge our single experiment's changes into it, and save it back.
+            
+            const remoteData = await window.githubDataManager.loadData();
+            if (!remoteData) {
+                console.error("Could not load remote data. Aborting save.");
+                return;
+            }
+
+            const experiments = remoteData.content.experiments || [];
+            const index = experiments.findIndex(exp => exp.id === this.currentExperiment.id);
+
+            if (index >= 0) {
+                experiments[index] = this.currentExperiment;
+            } else {
+                experiments.push(this.currentExperiment);
+            }
+            
+            const dataToSave = {
+                experiments: experiments,
+                lastUpdated: new Date().toISOString()
+            };
+
+            const success = await window.githubDataManager.saveData(dataToSave, 'Update evaluation results');
+            
+            if (success) {
+                 console.log("==> saveCurrentExperiment: Successfully saved to GitHub.");
             } else {
                  console.error("==> saveCurrentExperiment: Failed to save to GitHub.");
             }
@@ -1030,124 +1052,8 @@ class VideoComparison {
     }
 
     async loadExperimentsFromGitHub() {
-        const savedToken = localStorage.getItem('github_token');
-        if (!savedToken) {
-            console.log('No GitHub token available for loading');
-            return { experiments: [] };
-        }
-
-        const githubConfig = {
-            owner: 'WellyXY',
-            repo: 'side_by_side',
-            dataFile: 'experiments-data.json'
-        };
-
-        try {
-            const response = await fetch(`https://api.github.com/repos/${githubConfig.owner}/${githubConfig.repo}/contents/${githubConfig.dataFile}`, {
-                headers: {
-                    'Authorization': `token ${savedToken}`,
-                    'Accept': 'application/vnd.github.v3+json'
-                }
-            });
-
-            if (response.ok) {
-                const fileData = await response.json();
-                const content = JSON.parse(atob(fileData.content));
-                return content;
-            } else {
-                console.warn('Failed to load from GitHub:', response.status);
-                return { experiments: [] };
-            }
-        } catch (error) {
-            console.error('Error loading from GitHub:', error);
-            return { experiments: [] };
-        }
-    }
-
-    async saveExperimentsToGitHub(updatedExperiment) {
-        const savedToken = localStorage.getItem('github_token');
-        if (!savedToken) {
-            console.log('No GitHub token available, cannot save');
-            return false;
-        }
-
-        const githubConfig = {
-            owner: 'WellyXY',
-            repo: 'side_by_side',
-            dataFile: 'experiments-data.json'
-        };
-
-        try {
-            console.log('Fetching latest data from GitHub before saving...');
-            
-            // 1. Get the current file content and SHA
-            const getResponse = await fetch(`https://api.github.com/repos/${githubConfig.owner}/${githubConfig.repo}/contents/${githubConfig.dataFile}`, {
-                headers: {
-                    'Authorization': `token ${savedToken}`,
-                    'Accept': 'application/vnd.github.v3+json'
-                }
-            });
-
-            let experiments = [];
-            let sha = null;
-
-            if (getResponse.ok) {
-                const fileData = await getResponse.json();
-                sha = fileData.sha;
-                const content = JSON.parse(atob(fileData.content));
-                experiments = content.experiments || [];
-            } else if (getResponse.status !== 404) {
-                console.error('Failed to get existing file from GitHub:', getResponse.status);
-                return false;
-            }
-
-            // 2. Merge the changes
-            const index = experiments.findIndex(exp => exp.id === updatedExperiment.id);
-            if (index >= 0) {
-                // Update existing experiment
-                experiments[index] = updatedExperiment;
-            } else {
-                // Add new experiment (shouldn't happen in this flow, but good for robustness)
-                experiments.push(updatedExperiment);
-            }
-            
-            const contentToSave = {
-                experiments: experiments,
-                lastUpdated: new Date().toISOString(),
-                totalExperiments: experiments.length
-            };
-
-            const encodedContent = btoa(JSON.stringify(contentToSave, null, 2));
-
-            const requestBody = {
-                message: `Update experiment results - ${new Date().toISOString()}`,
-                content: encodedContent,
-                sha: sha // sha must be provided for updates
-            };
-
-            // 3. PUT the updated content back to GitHub
-            const putResponse = await fetch(`https://api.github.com/repos/${githubConfig.owner}/${githubConfig.repo}/contents/${githubConfig.dataFile}`, {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `token ${savedToken}`,
-                    'Accept': 'application/vnd.github.v3+json',
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(requestBody)
-            });
-
-            if (putResponse.ok) {
-                console.log('Successfully saved experiment results to GitHub');
-                return true;
-            } else {
-                const errorData = await putResponse.json();
-                console.error('Failed to save to GitHub:', putResponse.status, errorData.message);
-                return false;
-            }
-        } catch (error) {
-            console.error('Error saving to GitHub:', error);
-            return false;
-        }
+        const data = await window.githubDataManager.loadData();
+        return data ? data.content : { experiments: [] };
     }
 }
 
