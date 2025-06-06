@@ -622,16 +622,22 @@ class ExperimentManager {
     }
 
     startUserRound(experimentId, userId) {
+        if (!userId) {
+            this.showMessage('Please select or create a user.', 'error');
+            return;
+        }
+
+        const experiment = this.experiments.find(exp => exp.id === experimentId);
+        if (!experiment) {
+            this.showMessage('Experiment not found.', 'error');
+            return;
+        }
+        
         console.log('=== startUserRound ===', experimentId, userId);
         
         // Basic validation
         if (!experimentId || !userId) {
             throw new Error('Missing experiment ID or user ID');
-        }
-        
-        const experiment = this.experiments.find(exp => exp.id === experimentId);
-        if (!experiment) {
-            throw new Error('Experiment not found');
         }
         
         if (!experiment.pairs || experiment.pairs.length === 0) {
@@ -665,7 +671,9 @@ class ExperimentManager {
         localStorage.setItem('currentRoundId', roundId);
         
         console.log('Redirecting to evaluation...');
-        window.location.href = 'index.html';
+        // Add cache-busting query parameter
+        const cacheBuster = new Date().getTime();
+        window.location.href = `index.html?v=${cacheBuster}`;
     }
 
     restartExperiment(id) {
