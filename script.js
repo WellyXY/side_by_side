@@ -378,7 +378,7 @@ class VideoComparison {
         });
     }
 
-    setRating(score) {
+    async setRating(score) {
         console.log('=== setRating ===', 'pair:', this.currentPairIndex + 1, 'score:', score);
         
         this.currentRating = score;
@@ -389,7 +389,7 @@ class VideoComparison {
         // If in experiment mode, save result to experiment
         if (this.experimentMode && this.currentExperiment) {
             try {
-                this.saveExperimentResult(score);
+                await this.saveExperimentResult(score);
             } catch (error) {
                 console.error('Error saving experiment result:', error);
                 this.showMessage('Error saving results, but rating recorded', 'warning');
@@ -886,9 +886,16 @@ class VideoComparison {
         }
     }
 
-    saveExperimentResult(score) {
+    async saveExperimentResult(score) {
+        console.log('=== saveExperimentResult START ===');
+        console.log('Current experiment:', this.currentExperiment?.name);
+        console.log('Current round:', this.currentRound?.roundId);
+        console.log('Current user:', this.currentUserId);
+        
         if (!this.currentExperiment || !this.currentRound) {
             console.error('saveExperimentResult: Missing experiment or round data');
+            console.error('currentExperiment:', this.currentExperiment);
+            console.error('currentRound:', this.currentRound);
             return;
         }
         
@@ -949,12 +956,16 @@ class VideoComparison {
         this.currentExperiment.lastModified = new Date().toISOString();
         
         try {
-            this.saveCurrentExperiment();
+            console.log('About to save experiment with results:', this.currentExperiment.results.length);
+            await this.saveCurrentExperiment();
             console.log('Experiment saved successfully');
         } catch (error) {
             console.error('Error saving experiment:', error);
+            console.error('Error details:', error);
             this.showMessage('Error saving results, please try again', 'error');
         }
+        
+        console.log('=== saveExperimentResult END ===');
     }
 
     async saveCurrentExperiment() {
