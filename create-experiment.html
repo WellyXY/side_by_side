@@ -140,9 +140,13 @@
     </div>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
-        import './firebase-config.js'; // Ensure firebase is configured
-        import './create-experiment.js'; // Load the main script as a module
+        // Cache-busting by adding a unique query parameter
+        const timestamp = new Date().getTime();
+        (async () => {
+            // We use dynamic imports to ensure the latest versions of the scripts are fetched
+            await import(`./firebase-config.js?v=${timestamp}`);
+            await import(`./create-experiment.js?v=${timestamp}`);
+        })();
     </script>
 </body>
 </html> 
