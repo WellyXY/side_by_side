@@ -861,16 +861,34 @@ class VideoComparison {
                 this.currentUserId = localStorage.getItem('currentUserId');
                 this.currentRoundId = localStorage.getItem('currentRoundId');
                 
+                console.log('=== checkExperimentMode DEBUG ===');
+                console.log('Stored userId:', this.currentUserId);
+                console.log('Stored roundId:', this.currentRoundId);
+                console.log('Available user sessions:', Object.keys(this.currentExperiment.userSessions || {}));
+                
                 // Find current round
                 if (this.currentUserId && this.currentRoundId) {
                     const userSession = this.currentExperiment.userSessions[this.currentUserId];
+                    console.log('Found user session:', !!userSession);
+                    
                     if (userSession) {
                         this.currentRound = userSession.rounds.find(round => round.roundId === this.currentRoundId);
+                        console.log('Found round:', !!this.currentRound);
+                    } else {
+                        console.log('No user session found for', this.currentUserId);
+                        // Reset to avoid confusion
+                        this.currentUserId = null;
+                        this.currentRoundId = null;
+                        this.currentRound = null;
                     }
+                } else {
+                    console.log('Missing userId or roundId');
+                    this.currentRound = null;
                 }
                 
                 this.updateExperimentUI();
                 console.log('Experiment mode activated:', this.currentExperiment.name, 'User:', this.currentUserId, 'Round:', this.currentRoundId);
+                console.log('Current round object:', this.currentRound);
             }
         }
     }
