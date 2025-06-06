@@ -245,41 +245,48 @@ class CreateExperimentManager {
         };
 
         try {
-            // Load existing experiments
+            console.log('🎬 开始创建实验:', experiment.name);
+            
+            // 仅从GitHub加载现有实验数据
             let experiments = [];
-            try {
-                const localExperiments = localStorage.getItem('sbs_experiments');
-                if (localExperiments) {
-                    experiments = JSON.parse(localExperiments);
-                }
-                
-                // Try to load from GitHub if token available
-                if (this.githubConfig.token) {
-                    const githubExperiments = await this.loadExperimentsFromGitHub();
-                    if (githubExperiments) {
-                        experiments = githubExperiments;
-                    }
-                }
-            } catch (error) {
-                console.warn('Error loading existing experiments:', error);
-            }
-
-            // Add new experiment
-            experiments.push(experiment);
-            
-            // Save to local storage
-            localStorage.setItem('sbs_experiments', JSON.stringify(experiments));
-            
-            // Try to save to GitHub
             if (this.githubConfig.token) {
-                await this.saveExperimentsToGitHub(experiments);
+                console.log('📥 从GitHub加载现有实验...');
+                const githubExperiments = await this.loadExperimentsFromGitHub();
+                if (githubExperiments) {
+                    experiments = githubExperiments;
+                    console.log('✅ 成功加载现有实验:', experiments.length, '个');
+                } else {
+                    console.log('⚠️ GitHub加载失败，使用空列表');
+                    experiments = [];
+                }
+            } else {
+                console.error('❌ 没有GitHub token，无法保存实验');
+                throw new Error('GitHub token未配置，无法保存实验');
             }
 
-            this.showSuccessMessage();
+            // 添加新实验
+            experiments.push(experiment);
+            console.log('📝 添加新实验，总数:', experiments.length);
+            
+            // 仅保存到GitHub
+            console.log('💾 保存到GitHub...');
+            const saveSuccess = await this.saveExperimentsToGitHub(experiments);
+            
+            if (saveSuccess) {
+                console.log('✅ 实验创建成功！');
+                this.showMessage('实验创建成功！数据已保存到GitHub ✅', 'success');
+                
+                // 更新本地缓存
+                localStorage.setItem('sbs_experiments', JSON.stringify(experiments));
+                
+                this.showSuccessMessage();
+            } else {
+                throw new Error('保存到GitHub失败');
+            }
 
         } catch (error) {
-            console.error('Error creating experiment:', error);
-            this.showMessage('Error creating experiment. Please try again.', 'error');
+            console.error('❌ 创建实验失败:', error);
+            this.showMessage(`创建实验失败: ${error.message}`, 'error');
         }
     }
 
@@ -321,9 +328,12 @@ class CreateExperimentManager {
 
     async saveExperimentsToGitHub(experiments) {
         try {
+            console.log('💾 开始保存到GitHub，实验数量:', experiments.length);
+            
             const content = {
                 experiments: experiments,
-                lastUpdated: new Date().toISOString()
+                lastUpdated: new Date().toISOString(),
+                totalExperiments: experiments.length
             };
 
             const encodedContent = btoa(JSON.stringify(content, null, 2));
@@ -335,8 +345,12 @@ class CreateExperimentManager {
 
             if (this.githubConfig.sha) {
                 requestBody.sha = this.githubConfig.sha;
+                console.log('📝 更新现有文件，SHA:', this.githubConfig.sha);
+            } else {
+                console.log('📝 创建新文件');
             }
 
+            console.log('🌐 发送GitHub API请求...');
             const response = await fetch(`https://api.github.com/repos/${this.githubConfig.owner}/${this.githubConfig.repo}/contents/${this.githubConfig.dataFile}`, {
                 method: 'PUT',
                 headers: {
@@ -347,13 +361,21 @@ class CreateExperimentManager {
                 body: JSON.stringify(requestBody)
             });
 
+            console.log('📡 GitHub API响应状态:', response.status);
+
             if (response.ok) {
                 const result = await response.json();
                 this.githubConfig.sha = result.content.sha;
-                console.log('Successfully saved to GitHub');
+                console.log('✅ 成功保存到GitHub，新SHA:', this.githubConfig.sha);
+                return true;
+            } else {
+                const errorText = await response.text();
+                console.error('❌ GitHub API错误:', response.status, errorText);
+                throw new Error(`GitHub API错误: ${response.status} - ${errorText}`);
             }
         } catch (error) {
-            console.error('Failed to save to GitHub:', error);
+            console.error('❌ 保存到GitHub失败:', error);
+            return false;
         }
     }
 
