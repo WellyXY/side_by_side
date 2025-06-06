@@ -84,12 +84,23 @@
         }
       ],
       "results": [],
-      "userSessions": {},
+      "userSessions": {
+        "user1": {
+          "rounds": [
+            {
+              "roundId": "round_1749249266899",
+              "startTime": "2025-06-06T22:34:26.899Z",
+              "completed": false,
+              "results": []
+            }
+          ]
+        }
+      },
       "createdAt": "2025-06-06T22:34:22.732Z",
-      "lastModified": "2025-06-06T22:34:22.732Z",
+      "lastModified": "2025-06-06T22:34:26.899Z",
       "status": "not-started"
     }
   ],
-  "lastUpdated": "2025-06-06T22:34:22.740Z",
+  "lastUpdated": "2025-06-06T22:34:26.899Z",
   "totalExperiments": 1
 }
