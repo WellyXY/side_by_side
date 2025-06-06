@@ -1,3 +1,5 @@
+alert("✅ Firebase Version Loaded! If you see this, the cache is clear. The app will now work correctly.");
+
 import { db, collection, addDoc } from './firebase-config.js';
 
 class CreateExperimentManager {
