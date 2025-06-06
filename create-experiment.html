@@ -139,8 +139,10 @@
         </div>
     </div>
 
-    <script src="auto-config.js"></script>
-    <script src="force-token-update.js"></script>
-    <script src="create-experiment.js"></script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+        import './firebase-config.js'; // Ensure firebase is configured
+        import './create-experiment.js'; // Load the main script as a module
+    </script>
 </body>
 </html> 
