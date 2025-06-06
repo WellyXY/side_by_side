@@ -83,10 +83,36 @@ class ExperimentManager {
 
     init() {
         this.initGithubSettings();
-        this.loadExperiments();
         this.bindEvents();
-        this.updateStatistics();
-        this.renderExperiments();
+        this.setupPageVisibilitySync();
+        
+        // 延迟加载数据，确保auto-config.js有时间设置token
+        setTimeout(() => {
+            this.loadExperiments();
+        }, 200);
+    }
+
+    // 设置页面可见性同步 - 确保不同浏览器数据一致
+    setupPageVisibilitySync() {
+        // 当页面变为可见时，重新同步数据
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && this.githubConfig.token) {
+                console.log('页面变为可见，重新同步数据...');
+                setTimeout(() => {
+                    this.loadExperiments();
+                }, 500);
+            }
+        });
+        
+        // 当窗口获得焦点时，也重新同步
+        window.addEventListener('focus', () => {
+            if (this.githubConfig.token) {
+                console.log('窗口获得焦点，重新同步数据...');
+                setTimeout(() => {
+                    this.loadExperiments();
+                }, 300);
+            }
+        });
     }
 
     bindEvents() {
@@ -821,7 +847,32 @@ class ExperimentManager {
             if (response.ok) {
                 const data = await response.json();
                 const content = JSON.parse(atob(data.content));
-                this.experiments = content.experiments || [];
+                
+                // 检查数据版本，避免使用过时数据
+                const githubExperiments = content.experiments || [];
+                const localExperiments = JSON.parse(localStorage.getItem('sbs_experiments') || '[]');
+                
+                // 比较GitHub和本地数据，使用最新的
+                const githubUpdateTime = new Date(content.lastUpdated || '2000-01-01');
+                const localUpdateTime = localExperiments.length > 0 ? 
+                    new Date(Math.max(...localExperiments.map(exp => new Date(exp.lastModified || exp.createdAt)))) : 
+                    new Date('2000-01-01');
+                
+                console.log('数据版本比较:');
+                console.log('GitHub数据:', githubExperiments.length, '个实验, 最后更新:', content.lastUpdated);
+                console.log('本地数据:', localExperiments.length, '个实验, 最后更新:', localUpdateTime.toISOString());
+                
+                // 使用更新的数据
+                if (githubUpdateTime >= localUpdateTime || localExperiments.length === 0) {
+                    this.experiments = githubExperiments;
+                    console.log('✅ 使用GitHub数据 (更新或本地为空)');
+                } else {
+                    this.experiments = localExperiments;
+                    console.log('✅ 使用本地数据 (本地更新)');
+                    // 如果本地数据更新，将其同步到GitHub
+                    setTimeout(() => this.saveExperimentsToGitHub(), 1000);
+                }
+                
                 this.githubConfig.sha = data.sha;  // 保存 SHA 用于更新
                 console.log('Successfully loaded experiments from GitHub:', this.experiments.length);
                 return true;
