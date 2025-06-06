@@ -401,8 +401,10 @@ section h2 {
     background: white;
     padding: 30px;
     border-radius: 20px;
-    max-width: 400px;
+    max-width: 500px;
     width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
     text-align: center;
 }
 
@@ -422,9 +424,77 @@ section h2 {
     justify-content: center;
 }
 
+.modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
 .cancel-btn {
     background: #6c757d;
     color: white;
+}
+
+/* User Selection Styles */
+.user-selection {
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+.user-selection label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #555;
+}
+
+.user-selection select {
+    width: 100%;
+    padding: 10px;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+    background: white;
+    cursor: pointer;
+}
+
+.user-selection select:focus {
+    outline: none;
+    border-color: #007bff;
+}
+
+.user-stats {
+    margin-bottom: 20px;
+    text-align: left;
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+}
+
+.user-stats h4 {
+    margin-bottom: 10px;
+    color: #333;
+    font-size: 16px;
+}
+
+.session-summary {
+    background: white;
+    padding: 10px;
+    margin-bottom: 8px;
+    border-radius: 6px;
+    border-left: 4px solid #007bff;
+}
+
+.session-summary:last-child {
+    margin-bottom: 0;
+}
+
+.session-summary small {
+    color: #666;
+    font-size: 12px;
+    display: block;
+    margin-top: 4px;
 }
 
 /* 響應式設計 */

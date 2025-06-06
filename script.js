@@ -6,6 +6,9 @@ class VideoComparison {
         this.currentRating = null;
         this.currentExperiment = null;
         this.experimentMode = false;
+        this.currentUserId = null;
+        this.currentRoundId = null;
+        this.currentRound = null;
         this.init();
     }
 
@@ -59,13 +62,15 @@ class VideoComparison {
                     };
                 });
                 
-                // Load existing rating results
+                // Load existing rating results for current round
                 this.ratings = new Array(this.videoPairs.length).fill(null);
-                this.currentExperiment.results.forEach(result => {
-                    if (result.pairIndex < this.ratings.length) {
-                        this.ratings[result.pairIndex] = result.rating;
-                    }
-                });
+                if (this.currentRound && this.currentRound.results) {
+                    this.currentRound.results.forEach(result => {
+                        if (result.pairIndex < this.ratings.length) {
+                            this.ratings[result.pairIndex] = result.rating;
+                        }
+                    });
+                }
                 
                 // Find first unrated position
                 const nextIndex = this.ratings.findIndex(rating => rating === null);
@@ -493,12 +498,22 @@ class VideoComparison {
         const resultsSummary = document.getElementById('resultsSummary');
         resultsSummary.style.display = 'block';
         
-        // Calculate statistics from experiment results or current ratings
+        // Calculate statistics from ALL user results or current ratings
         let validRatings = [];
+        let userStats = {};
         
         if (this.currentExperiment && this.currentExperiment.results) {
-            // Use experiment results
+            // Use ALL experiment results from all users and rounds
             validRatings = this.currentExperiment.results.map(r => r.rating).filter(r => r !== null);
+            
+            // Calculate per-user statistics
+            this.currentExperiment.results.forEach(result => {
+                if (!userStats[result.userId]) {
+                    userStats[result.userId] = { ratings: [], rounds: new Set() };
+                }
+                userStats[result.userId].ratings.push(result.rating);
+                userStats[result.userId].rounds.add(result.roundId);
+            });
         } else {
             // Use current ratings
             validRatings = this.ratings.filter(r => r !== null);
@@ -525,6 +540,11 @@ class VideoComparison {
             // Keep default labels
             document.querySelector('#resultsSummary .stat-card:nth-child(2) h3').textContent = 'Pika 2.5 Wins';
             document.querySelector('#resultsSummary .stat-card:nth-child(3) h3').textContent = 'Pika 2.2 Wins';
+        }
+        
+        // Show multi-user statistics if available
+        if (Object.keys(userStats).length > 0) {
+            this.displayMultiUserStats(userStats);
         }
         
         // Update statistics cards
@@ -605,6 +625,80 @@ class VideoComparison {
         ctx.textAlign = 'center';
         ctx.fillText('Evaluation Results', centerX, 30);
     }
+
+    displayMultiUserStats(userStats) {
+        const multiUserOverview = document.getElementById('multiUserOverview');
+        const userStatsGrid = document.getElementById('userStatsGrid');
+        
+        // Show the multi-user overview section
+        multiUserOverview.style.display = 'block';
+        
+        // Clear existing content
+        userStatsGrid.innerHTML = '';
+        
+        // Create statistics for each user
+        Object.entries(userStats).forEach(([userId, stats]) => {
+            const leftWins = stats.ratings.filter(r => r < 0).length;
+            const rightWins = stats.ratings.filter(r => r > 0).length;
+            const ties = stats.ratings.filter(r => r === 0).length;
+            const totalRatings = stats.ratings.length;
+            const roundsCount = stats.rounds.size;
+            
+            const userCard = document.createElement('div');
+            userCard.className = 'user-stat-card';
+            userCard.innerHTML = `
+                <h4>${userId}</h4>
+                <div class="user-stat-item">
+                    <span class="user-stat-label">Rounds:</span>
+                    <span class="user-stat-value">${roundsCount}</span>
+                </div>
+                <div class="user-stat-item">
+                    <span class="user-stat-label">Total Ratings:</span>
+                    <span class="user-stat-value">${totalRatings}</span>
+                </div>
+                <div class="user-stat-item">
+                    <span class="user-stat-label">Left Wins:</span>
+                    <span class="user-stat-value">${leftWins}</span>
+                </div>
+                <div class="user-stat-item">
+                    <span class="user-stat-label">Right Wins:</span>
+                    <span class="user-stat-value">${rightWins}</span>
+                </div>
+                <div class="user-stat-item">
+                    <span class="user-stat-label">Ties:</span>
+                    <span class="user-stat-value">${ties}</span>
+                </div>
+            `;
+            
+            userStatsGrid.appendChild(userCard);
+        });
+        
+        // Add summary card
+        const totalUsers = Object.keys(userStats).length;
+        const totalRounds = Object.values(userStats).reduce((sum, stats) => sum + stats.rounds.size, 0);
+        const avgRatingsPerUser = Math.round(Object.values(userStats).reduce((sum, stats) => sum + stats.ratings.length, 0) / totalUsers);
+        
+        const summaryCard = document.createElement('div');
+        summaryCard.className = 'user-stat-card';
+        summaryCard.style.borderLeft = '4px solid #28a745';
+        summaryCard.innerHTML = `
+            <h4>Overall Summary</h4>
+            <div class="user-stat-item">
+                <span class="user-stat-label">Total Users:</span>
+                <span class="user-stat-value">${totalUsers}</span>
+            </div>
+            <div class="user-stat-item">
+                <span class="user-stat-label">Total Rounds:</span>
+                <span class="user-stat-value">${totalRounds}</span>
+            </div>
+            <div class="user-stat-item">
+                <span class="user-stat-label">Avg Ratings/User:</span>
+                <span class="user-stat-value">${avgRatingsPerUser}</span>
+            </div>
+        `;
+        
+        userStatsGrid.appendChild(summaryCard);
+    }
     
     restart() {
         // Reset all data
@@ -641,8 +735,19 @@ class VideoComparison {
             
             if (this.currentExperiment) {
                 this.experimentMode = true;
+                this.currentUserId = localStorage.getItem('currentUserId');
+                this.currentRoundId = localStorage.getItem('currentRoundId');
+                
+                // Find current round
+                if (this.currentUserId && this.currentRoundId) {
+                    const userSession = this.currentExperiment.userSessions[this.currentUserId];
+                    if (userSession) {
+                        this.currentRound = userSession.rounds.find(round => round.roundId === this.currentRoundId);
+                    }
+                }
+                
                 this.updateExperimentUI();
-                console.log('Experiment mode activated:', this.currentExperiment.name);
+                console.log('Experiment mode activated:', this.currentExperiment.name, 'User:', this.currentUserId, 'Round:', this.currentRoundId);
             }
         }
     }
@@ -651,16 +756,20 @@ class VideoComparison {
         if (this.currentExperiment) {
             const experimentNameElement = document.getElementById('currentExperimentName');
             if (experimentNameElement) {
-                experimentNameElement.textContent = `Current Experiment: ${this.currentExperiment.name}`;
+                const userInfo = this.currentUserId ? ` | User: ${this.currentUserId}` : '';
+                const roundInfo = this.currentRound ? ` | Round: ${this.currentRound.rounds?.length || 1}` : '';
+                experimentNameElement.textContent = `Current Experiment: ${this.currentExperiment.name}${userInfo}${roundInfo}`;
             }
         }
     }
 
     saveExperimentResult(score) {
-        if (!this.currentExperiment) return;
+        if (!this.currentExperiment || !this.currentRound) return;
         
         const pair = this.videoPairs[this.currentPairIndex];
         const result = {
+            userId: this.currentUserId,
+            roundId: this.currentRoundId,
             pairIndex: this.currentPairIndex,
             baseName: pair.baseName,
             leftVideo: pair.leftVideo,
@@ -669,15 +778,32 @@ class VideoComparison {
             timestamp: new Date().toISOString()
         };
         
-        // Check if result already exists, update if so, otherwise add
-        const existingIndex = this.currentExperiment.results.findIndex(
+        // Save to current round
+        if (!this.currentRound.results) {
+            this.currentRound.results = [];
+        }
+        
+        // Check if result already exists in current round, update if so, otherwise add
+        const existingIndex = this.currentRound.results.findIndex(
             r => r.pairIndex === this.currentPairIndex
         );
         
         if (existingIndex >= 0) {
-            this.currentExperiment.results[existingIndex] = result;
+            this.currentRound.results[existingIndex] = result;
         } else {
-            this.currentExperiment.results.push(result);
+            this.currentRound.results.push(result);
+        }
+        
+        // Also save to global results for aggregation
+        if (!this.currentExperiment.results) {
+            this.currentExperiment.results = [];
+        }
+        this.currentExperiment.results.push(result);
+        
+        // Check if round is completed
+        if (this.currentRound.results.length === this.videoPairs.length) {
+            this.currentRound.completed = true;
+            this.currentRound.completedAt = new Date().toISOString();
         }
         
         this.currentExperiment.lastModified = new Date().toISOString();

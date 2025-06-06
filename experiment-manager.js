@@ -209,7 +209,8 @@ class ExperimentManager {
             folderA: folderA,
             folderB: folderB,
             pairs: this.currentPairs,
-            results: [],
+            results: [], // Will store: { userId, roundId, pairIndex, rating, timestamp }
+            userSessions: {}, // Track user sessions: { userId: { rounds: [{roundId, completed, results}] } }
             createdAt: new Date().toISOString(),
             lastModified: new Date().toISOString(),
             status: 'not-started'
@@ -248,18 +249,15 @@ class ExperimentManager {
     }
 
     generateExperimentCard(experiment) {
-        const completionRate = experiment.pairs.length > 0 ? 
-            Math.round((experiment.results.length / experiment.pairs.length) * 100) : 0;
-        
-        const status = completionRate === 100 ? 'completed' : 
-                      completionRate > 0 ? 'in-progress' : 'not-started';
-        
+        // Calculate multi-user statistics
+        const stats = this.calculateExperimentStats(experiment);
         const statusText = {
-            'completed': 'Completed',
-            'in-progress': 'In Progress',
+            'active': 'Active',
+            'pending': 'Pending Users',
             'not-started': 'Not Started'
         };
 
+        const status = stats.uniqueUsers > 0 ? 'active' : 'not-started';
         const statusClass = `status-${status}`;
 
         return `
@@ -278,20 +276,24 @@ class ExperimentManager {
                 <div class="experiment-stats">
                     <div class="stat-item">
                         <span class="stat-value">${experiment.pairs.length}</span>
-                        <span class="stat-label">Total Pairs</span>
+                        <span class="stat-label">Video Pairs</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-value">${experiment.results.length}</span>
-                        <span class="stat-label">Rated</span>
+                        <span class="stat-value">${stats.uniqueUsers}</span>
+                        <span class="stat-label">Users</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-value">${completionRate}%</span>
-                        <span class="stat-label">Progress</span>
+                        <span class="stat-value">${stats.totalRounds}</span>
+                        <span class="stat-label">Total Rounds</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value">${stats.totalRatings}</span>
+                        <span class="stat-label">Total Ratings</span>
                     </div>
                 </div>
 
                 <div class="experiment-actions">
-                    ${this.generateActionButtons(experiment, status)}
+                    ${this.generateActionButtons(experiment, status, stats)}
                     <button class="action-btn delete-btn" onclick="experimentManager.showDeleteModal('${experiment.id}')">
                         Delete
                     </button>
@@ -300,29 +302,156 @@ class ExperimentManager {
         `;
     }
 
-    generateActionButtons(experiment, status) {
-        switch (status) {
-            case 'not-started':
-                return `<button class="action-btn start-btn" onclick="experimentManager.startExperiment('${experiment.id}')">Start Test</button>`;
-            case 'in-progress':
-                return `<button class="action-btn continue-btn" onclick="experimentManager.continueExperiment('${experiment.id}')">Continue Test</button>`;
-            case 'completed':
-                return `
-                    <button class="action-btn view-btn" onclick="experimentManager.viewResults('${experiment.id}')">View Results</button>
-                    <button class="action-btn start-btn" onclick="experimentManager.restartExperiment('${experiment.id}')">Restart Test</button>
-                `;
-            default:
-                return '';
+    calculateExperimentStats(experiment) {
+        const userSessions = experiment.userSessions || {};
+        const uniqueUsers = Object.keys(userSessions).length;
+        
+        let totalRounds = 0;
+        let totalRatings = 0;
+        let completedRounds = 0;
+        
+        Object.values(userSessions).forEach(userSession => {
+            totalRounds += userSession.rounds.length;
+            userSession.rounds.forEach(round => {
+                totalRatings += round.results.length;
+                if (round.completed) {
+                    completedRounds++;
+                }
+            });
+        });
+        
+        return {
+            uniqueUsers,
+            totalRounds,
+            totalRatings,
+            completedRounds,
+            avgRatingsPerUser: uniqueUsers > 0 ? Math.round(totalRatings / uniqueUsers) : 0
+        };
+    }
+
+    generateActionButtons(experiment, status, stats) {
+        const buttons = [];
+        
+        // Always show "Join Test" button for new users or new rounds
+        buttons.push(`<button class="action-btn start-btn" onclick="experimentManager.startExperiment('${experiment.id}')">Join Test</button>`);
+        
+        // Show results if there are any ratings
+        if (stats.totalRatings > 0) {
+            buttons.push(`<button class="action-btn view-btn" onclick="experimentManager.viewResults('${experiment.id}')">View Results</button>`);
         }
+        
+        return buttons.join('');
     }
 
     startExperiment(id) {
-        this.setCurrentExperiment(id);
-        window.location.href = 'index.html';
+        this.showUserSelectionModal(id);
     }
 
-    continueExperiment(id) {
-        this.setCurrentExperiment(id);
+    showUserSelectionModal(experimentId) {
+        const experiment = this.experiments.find(exp => exp.id === experimentId);
+        if (!experiment) return;
+        
+        // Create and show user selection modal
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.id = 'userSelectionModal';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <h3>Join Experiment: ${experiment.name}</h3>
+                <div class="user-selection">
+                    <label for="userId">User ID (1-10):</label>
+                    <select id="userId" required>
+                        <option value="">Select User ID</option>
+                        ${Array.from({length: 10}, (_, i) => `<option value="user${i+1}">User ${i+1}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="user-stats" id="userStats" style="display: none;">
+                    <h4>Your Previous Sessions:</h4>
+                    <div id="userPreviousSessions"></div>
+                </div>
+                <div class="modal-actions">
+                    <button id="startNewRound" class="action-btn start-btn">Start New Round</button>
+                    <button id="cancelUserSelection" class="action-btn">Cancel</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        modal.style.display = 'flex';
+        
+        // Bind events
+        document.getElementById('userId').addEventListener('change', (e) => {
+            this.updateUserStats(experimentId, e.target.value);
+        });
+        
+        document.getElementById('startNewRound').addEventListener('click', () => {
+            const userId = document.getElementById('userId').value;
+            if (userId) {
+                this.startUserRound(experimentId, userId);
+                document.body.removeChild(modal);
+            } else {
+                alert('Please select a User ID');
+            }
+        });
+        
+        document.getElementById('cancelUserSelection').addEventListener('click', () => {
+            document.body.removeChild(modal);
+        });
+    }
+
+    updateUserStats(experimentId, userId) {
+        const experiment = this.experiments.find(exp => exp.id === experimentId);
+        const userStats = document.getElementById('userStats');
+        const userPreviousSessions = document.getElementById('userPreviousSessions');
+        
+        if (!userId) {
+            userStats.style.display = 'none';
+            return;
+        }
+        
+        const userSession = experiment.userSessions[userId];
+        if (userSession && userSession.rounds.length > 0) {
+            userStats.style.display = 'block';
+            userPreviousSessions.innerHTML = userSession.rounds.map((round, index) => `
+                <div class="session-summary">
+                    <strong>Round ${index + 1}:</strong> 
+                    ${round.results.length}/${experiment.pairs.length} ratings 
+                    (${round.completed ? 'Completed' : 'In Progress'})
+                    <small> - ${new Date(round.startTime).toLocaleString()}</small>
+                </div>
+            `).join('');
+        } else {
+            userStats.style.display = 'block';
+            userPreviousSessions.innerHTML = '<p>No previous sessions for this user.</p>';
+        }
+    }
+
+    startUserRound(experimentId, userId) {
+        const experiment = this.experiments.find(exp => exp.id === experimentId);
+        if (!experiment) return;
+        
+        // Initialize user session if not exists
+        if (!experiment.userSessions[userId]) {
+            experiment.userSessions[userId] = { rounds: [] };
+        }
+        
+        // Create new round
+        const roundId = `round_${Date.now()}`;
+        const newRound = {
+            roundId: roundId,
+            startTime: new Date().toISOString(),
+            completed: false,
+            results: []
+        };
+        
+        experiment.userSessions[userId].rounds.push(newRound);
+        this.saveExperiments();
+        
+        // Set current session info
+        localStorage.setItem('currentExperimentId', experimentId);
+        localStorage.setItem('currentUserId', userId);
+        localStorage.setItem('currentRoundId', roundId);
+        
         window.location.href = 'index.html';
     }
 
@@ -371,23 +500,26 @@ class ExperimentManager {
 
     updateStatistics() {
         const total = this.experiments.length;
-        const completed = this.experiments.filter(exp => {
-            const completionRate = exp.pairs.length > 0 ? 
-                Math.round((exp.results.length / exp.pairs.length) * 100) : 0;
-            return completionRate === 100;
-        }).length;
         
-        const totalRatings = this.experiments.reduce((sum, exp) => sum + exp.results.length, 0);
-        const avgCompletion = total > 0 ? 
-            Math.round(this.experiments.reduce((sum, exp) => {
-                const rate = exp.pairs.length > 0 ? (exp.results.length / exp.pairs.length) * 100 : 0;
-                return sum + rate;
-            }, 0) / total) : 0;
+        let totalUsers = 0;
+        let totalRounds = 0;
+        let totalRatings = 0;
+        let activeExperiments = 0;
+        
+        this.experiments.forEach(exp => {
+            const stats = this.calculateExperimentStats(exp);
+            totalUsers += stats.uniqueUsers;
+            totalRounds += stats.totalRounds;
+            totalRatings += stats.totalRatings;
+            if (stats.uniqueUsers > 0) {
+                activeExperiments++;
+            }
+        });
 
         document.getElementById('totalExperiments').textContent = total;
-        document.getElementById('completedExperiments').textContent = completed;
+        document.getElementById('completedExperiments').textContent = activeExperiments;
         document.getElementById('totalRatings').textContent = totalRatings;
-        document.getElementById('avgCompletion').textContent = `${avgCompletion}%`;
+        document.getElementById('avgCompletion').textContent = `${totalUsers} Users`;
     }
 
     loadExperiments() {
