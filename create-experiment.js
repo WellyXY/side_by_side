@@ -245,48 +245,48 @@ class CreateExperimentManager {
         };
 
         try {
-            console.log('🎬 开始创建实验:', experiment.name);
+            console.log('🎬 Starting experiment creation:', experiment.name);
             
-            // 仅从GitHub加载现有实验数据
+            // Load existing experiments from GitHub only
             let experiments = [];
             if (this.githubConfig.token) {
-                console.log('📥 从GitHub加载现有实验...');
+                console.log('📥 Loading existing experiments from GitHub...');
                 const githubExperiments = await this.loadExperimentsFromGitHub();
                 if (githubExperiments) {
                     experiments = githubExperiments;
-                    console.log('✅ 成功加载现有实验:', experiments.length, '个');
+                    console.log('✅ Successfully loaded existing experiments:', experiments.length, 'experiments');
                 } else {
-                    console.log('⚠️ GitHub加载失败，使用空列表');
+                    console.log('⚠️ GitHub loading failed, using empty list');
                     experiments = [];
                 }
             } else {
-                console.error('❌ 没有GitHub token，无法保存实验');
-                throw new Error('GitHub token未配置，无法保存实验');
+                console.error('❌ No GitHub token available');
+                throw new Error('GitHub token not configured. Cannot save experiment.');
             }
 
-            // 添加新实验
+            // Add new experiment
             experiments.push(experiment);
-            console.log('📝 添加新实验，总数:', experiments.length);
+            console.log('📝 Added new experiment, total count:', experiments.length);
             
-            // 仅保存到GitHub
-            console.log('💾 保存到GitHub...');
-            const saveSuccess = await this.saveExperimentsToGitHub(experiments);
+            // Save to GitHub only
+            console.log('💾 Saving to GitHub...');
+            const saveResult = await this.saveExperimentsToGitHub(experiments);
             
-            if (saveSuccess) {
-                console.log('✅ 实验创建成功！');
-                this.showMessage('实验创建成功！数据已保存到GitHub ✅', 'success');
+            if (saveResult.success) {
+                console.log('✅ Experiment created successfully!');
+                this.showMessage('Experiment created successfully! Data saved to GitHub ✅', 'success');
                 
-                // 更新本地缓存
+                // Update local cache
                 localStorage.setItem('sbs_experiments', JSON.stringify(experiments));
                 
                 this.showSuccessMessage();
             } else {
-                throw new Error('保存到GitHub失败');
+                throw new Error(`Failed to save to GitHub: ${saveResult.error || 'Unknown error'}`);
             }
 
         } catch (error) {
-            console.error('❌ 创建实验失败:', error);
-            this.showMessage(`创建实验失败: ${error.message}`, 'error');
+            console.error('❌ Failed to create experiment:', error);
+            this.showMessage(`Failed to create experiment: ${error.message}`, 'error');
         }
     }
 
@@ -328,8 +328,13 @@ class CreateExperimentManager {
 
     async saveExperimentsToGitHub(experiments) {
         try {
-            console.log('💾 开始保存到GitHub，实验数量:', experiments.length);
+            console.log('💾 Starting GitHub save, experiment count:', experiments.length);
             
+            // Validate token
+            if (!this.githubConfig.token) {
+                return { success: false, error: 'GitHub token not configured' };
+            }
+
             const content = {
                 experiments: experiments,
                 lastUpdated: new Date().toISOString(),
@@ -343,14 +348,24 @@ class CreateExperimentManager {
                 content: encodedContent
             };
 
-            if (this.githubConfig.sha) {
-                requestBody.sha = this.githubConfig.sha;
-                console.log('📝 更新现有文件，SHA:', this.githubConfig.sha);
-            } else {
-                console.log('📝 创建新文件');
+            // Get latest SHA to avoid conflicts
+            if (!this.githubConfig.sha) {
+                console.log('🔍 Getting latest file SHA...');
+                const latestSha = await this.getLatestFileSha();
+                if (latestSha) {
+                    this.githubConfig.sha = latestSha;
+                    console.log('📝 Retrieved latest SHA:', this.githubConfig.sha);
+                }
             }
 
-            console.log('🌐 发送GitHub API请求...');
+            if (this.githubConfig.sha) {
+                requestBody.sha = this.githubConfig.sha;
+                console.log('📝 Updating existing file with SHA:', this.githubConfig.sha);
+            } else {
+                console.log('📝 Creating new file');
+            }
+
+            console.log('🌐 Sending GitHub API request...');
             const response = await fetch(`https://api.github.com/repos/${this.githubConfig.owner}/${this.githubConfig.repo}/contents/${this.githubConfig.dataFile}`, {
                 method: 'PUT',
                 headers: {
@@ -361,21 +376,47 @@ class CreateExperimentManager {
                 body: JSON.stringify(requestBody)
             });
 
-            console.log('📡 GitHub API响应状态:', response.status);
+            console.log('📡 GitHub API response status:', response.status);
 
             if (response.ok) {
                 const result = await response.json();
                 this.githubConfig.sha = result.content.sha;
-                console.log('✅ 成功保存到GitHub，新SHA:', this.githubConfig.sha);
-                return true;
+                console.log('✅ Successfully saved to GitHub, new SHA:', this.githubConfig.sha);
+                return { success: true };
             } else {
-                const errorText = await response.text();
-                console.error('❌ GitHub API错误:', response.status, errorText);
-                throw new Error(`GitHub API错误: ${response.status} - ${errorText}`);
+                const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+                const errorMessage = `HTTP ${response.status}: ${errorData.message || 'GitHub API error'}`;
+                console.error('❌ GitHub API error:', errorMessage);
+                console.error('Response:', errorData);
+                return { success: false, error: errorMessage };
             }
         } catch (error) {
-            console.error('❌ 保存到GitHub失败:', error);
-            return false;
+            console.error('❌ Failed to save to GitHub:', error);
+            return { success: false, error: error.message || 'Network or unexpected error' };
+        }
+    }
+
+    async getLatestFileSha() {
+        try {
+            const response = await fetch(`https://api.github.com/repos/${this.githubConfig.owner}/${this.githubConfig.repo}/contents/${this.githubConfig.dataFile}`, {
+                headers: {
+                    'Authorization': `token ${this.githubConfig.token}`,
+                    'Accept': 'application/vnd.github.v3+json'
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                return data.sha;
+            } else if (response.status === 404) {
+                return null; // File doesn't exist yet
+            } else {
+                console.warn('Failed to get latest SHA:', response.status);
+                return null;
+            }
+        } catch (error) {
+            console.warn('Error getting latest SHA:', error);
+            return null;
         }
     }
 
