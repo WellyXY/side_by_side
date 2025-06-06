@@ -814,19 +814,22 @@ class ExperimentManager {
     }
 
     async loadExperiments() {
-        // 优先从 GitHub 加载，失败则使用本地存储
-        const githubSuccess = await this.loadExperimentsFromGitHub();
-        if (!githubSuccess) {
-            this.loadExperimentsFromLocal();
-        }
+        // 仅从 GitHub 加载数据，不使用本地存储
+        console.log('🌐 仅从GitHub加载数据，忽略本地存储...');
+        await this.loadExperimentsFromGitHub();
         this.renderExperiments();
         this.updateStatistics();
     }
 
     async saveExperiments() {
-        // 同时保存到 GitHub 和本地存储
-        await this.saveExperimentsToGitHub();
-        this.saveExperimentsToLocal();
+        // 仅保存到 GitHub，本地存储作为缓存
+        console.log('💾 仅保存到GitHub...');
+        const success = await this.saveExperimentsToGitHub();
+        if (success) {
+            // 成功保存到GitHub后，更新本地缓存
+            this.saveExperimentsToLocal();
+        }
+        return success;
     }
 
     // GitHub API 相关方法
@@ -848,33 +851,16 @@ class ExperimentManager {
                 const data = await response.json();
                 const content = JSON.parse(atob(data.content));
                 
-                // 检查数据版本，避免使用过时数据
-                const githubExperiments = content.experiments || [];
-                const localExperiments = JSON.parse(localStorage.getItem('sbs_experiments') || '[]');
-                
-                // 比较GitHub和本地数据，使用最新的
-                const githubUpdateTime = new Date(content.lastUpdated || '2000-01-01');
-                const localUpdateTime = localExperiments.length > 0 ? 
-                    new Date(Math.max(...localExperiments.map(exp => new Date(exp.lastModified || exp.createdAt)))) : 
-                    new Date('2000-01-01');
-                
-                console.log('数据版本比较:');
-                console.log('GitHub数据:', githubExperiments.length, '个实验, 最后更新:', content.lastUpdated);
-                console.log('本地数据:', localExperiments.length, '个实验, 最后更新:', localUpdateTime.toISOString());
-                
-                // 使用更新的数据
-                if (githubUpdateTime >= localUpdateTime || localExperiments.length === 0) {
-                    this.experiments = githubExperiments;
-                    console.log('✅ 使用GitHub数据 (更新或本地为空)');
-                } else {
-                    this.experiments = localExperiments;
-                    console.log('✅ 使用本地数据 (本地更新)');
-                    // 如果本地数据更新，将其同步到GitHub
-                    setTimeout(() => this.saveExperimentsToGitHub(), 1000);
-                }
-                
+                // 仅使用GitHub数据
+                this.experiments = content.experiments || [];
                 this.githubConfig.sha = data.sha;  // 保存 SHA 用于更新
-                console.log('Successfully loaded experiments from GitHub:', this.experiments.length);
+                
+                console.log('✅ 成功从GitHub加载数据:', this.experiments.length, '个实验');
+                console.log('📅 GitHub数据最后更新:', content.lastUpdated);
+                
+                // 更新本地存储为GitHub数据的副本
+                this.saveExperimentsToLocal();
+                
                 return true;
             } else if (response.status === 404) {
                 console.log('Experiments file not found on GitHub, will create new one');
@@ -885,8 +871,9 @@ class ExperimentManager {
             }
         } catch (error) {
             console.error('Failed to load from GitHub:', error);
-            // 回退到本地存储
-            this.loadExperimentsFromLocal();
+            // 不使用本地数据，保持空数组
+            this.experiments = [];
+            console.log('❌ GitHub加载失败，使用空数据列表');
             return false;
         }
     }
