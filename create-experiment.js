@@ -376,5 +376,7 @@ class CreateExperimentManager {
 // Initialize the create experiment manager
 document.addEventListener('DOMContentLoaded', () => {
     const manager = new CreateExperimentManager();
+    // 暴露到window对象供auto-config.js访问
+    window.createManager = manager;
     manager.init();
 }); 

@@ -1127,6 +1127,9 @@ class ExperimentManager {
 
 // Initialize experiment manager
 const experimentManager = new ExperimentManager();
+// 暴露到window对象供auto-config.js访问
+window.experimentManager = experimentManager;
+
 document.addEventListener('DOMContentLoaded', () => {
     experimentManager.init();
 }); 
