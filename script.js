@@ -241,7 +241,7 @@ class VideoComparison {
         leftVideo.src = pair.leftVideo.path;
         rightVideo.src = pair.rightVideo.path;
         
-        // 顯示prompt信息（檔案名稱轉換為可讀的提示詞）
+        // Display prompt information (convert filename to readable prompt)
         promptText.textContent = this.formatPrompt(pair.baseName);
         
         // Debug info: display current pairing in console
@@ -340,6 +340,8 @@ class VideoComparison {
     }
 
     setRating(score) {
+        console.log('=== setRating ===', 'pair:', this.currentPairIndex + 1, 'score:', score);
+        
         this.currentRating = score;
         this.ratings[this.currentPairIndex] = score;
         this.updateRatingButtons();
@@ -347,7 +349,12 @@ class VideoComparison {
         
         // If in experiment mode, save result to experiment
         if (this.experimentMode && this.currentExperiment) {
-            this.saveExperimentResult(score);
+            try {
+                this.saveExperimentResult(score);
+            } catch (error) {
+                console.error('Error saving experiment result:', error);
+                this.showMessage('Error saving results, but rating recorded', 'warning');
+            }
         }
         
         // Show version information
@@ -357,15 +364,24 @@ class VideoComparison {
         
         // Check if all evaluations are complete
         const allRated = this.ratings.every(r => r !== null);
+        console.log('Rating status:', `${this.ratings.filter(r => r !== null).length}/${this.ratings.length}`, 'All rated:', allRated);
         
         // Auto jump to next pair (delay 0.8 seconds)
         setTimeout(() => {
-            if (this.currentPairIndex < this.videoPairs.length - 1) {
-                this.nextPair();
-            } else if (allRated) {
-                this.showResults();
-            } else {
-                this.showMessage('All video evaluations completed!', 'success');
+            try {
+                if (this.currentPairIndex < this.videoPairs.length - 1) {
+                    console.log('Moving to next pair...');
+                    this.nextPair();
+                } else if (allRated) {
+                    console.log('All pairs rated, showing results...');
+                    this.showResults();
+                } else {
+                    console.log('Evaluation complete but not all pairs rated');
+                    this.showMessage('All video evaluations completed!', 'success');
+                }
+            } catch (error) {
+                console.error('Error in auto navigation:', error);
+                this.showMessage('Error navigating to next question, please click next manually', 'error');
             }
         }, 800);
     }
@@ -379,10 +395,24 @@ class VideoComparison {
     }
 
     nextPair() {
+        console.log('=== nextPair ===', 'current:', this.currentPairIndex + 1, 'total:', this.videoPairs.length);
+        
         if (this.currentPairIndex < this.videoPairs.length - 1) {
             this.currentPairIndex++;
-            this.loadCurrentPair();
-            this.updateUI();
+            console.log('Moving to pair:', this.currentPairIndex + 1);
+            
+            try {
+                this.loadCurrentPair();
+                this.updateUI();
+                console.log('Successfully loaded pair:', this.currentPairIndex + 1);
+            } catch (error) {
+                console.error('Error loading next pair:', error);
+                this.showMessage('Error loading next question', 'error');
+                // Revert to previous pair if loading fails
+                this.currentPairIndex--;
+            }
+        } else {
+            console.log('Already at last pair, cannot move forward');
         }
     }
 
@@ -444,7 +474,7 @@ class VideoComparison {
             .replace(/\s+/g, ' ')
             .trim();
             
-        // 如果處理後是空的，返回默認值
+        // If processed result is empty, return default value
         if (!formatted) {
             return 'General video generation';
         }
@@ -730,7 +760,7 @@ class VideoComparison {
     checkExperimentMode() {
         const experimentId = localStorage.getItem('currentExperimentId');
         if (experimentId) {
-            const experiments = JSON.parse(localStorage.getItem('pikaExperiments') || '[]');
+            const experiments = JSON.parse(localStorage.getItem('sbs_experiments') || '[]');
             this.currentExperiment = experiments.find(exp => exp.id === experimentId);
             
             if (this.currentExperiment) {
@@ -764,7 +794,12 @@ class VideoComparison {
     }
 
     saveExperimentResult(score) {
-        if (!this.currentExperiment || !this.currentRound) return;
+        if (!this.currentExperiment || !this.currentRound) {
+            console.error('saveExperimentResult: Missing experiment or round data');
+            return;
+        }
+        
+        console.log('Saving result for pair:', this.currentPairIndex, 'score:', score);
         
         const pair = this.videoPairs[this.currentPairIndex];
         const result = {
@@ -790,35 +825,123 @@ class VideoComparison {
         
         if (existingIndex >= 0) {
             this.currentRound.results[existingIndex] = result;
+            console.log('Updated existing result for pair', this.currentPairIndex);
         } else {
             this.currentRound.results.push(result);
+            console.log('Added new result for pair', this.currentPairIndex);
         }
         
-        // Also save to global results for aggregation
+        // Save to global results for aggregation (avoid duplicates)
         if (!this.currentExperiment.results) {
             this.currentExperiment.results = [];
         }
+        
+        // Remove any existing global result for this user/round/pair combination to avoid duplicates
+        this.currentExperiment.results = this.currentExperiment.results.filter(
+            r => !(r.userId === this.currentUserId && 
+                   r.roundId === this.currentRoundId && 
+                   r.pairIndex === this.currentPairIndex)
+        );
+        
+        // Add the new result
         this.currentExperiment.results.push(result);
         
         // Check if round is completed
         if (this.currentRound.results.length === this.videoPairs.length) {
             this.currentRound.completed = true;
             this.currentRound.completedAt = new Date().toISOString();
+            console.log('Round completed!');
         }
         
         this.currentExperiment.lastModified = new Date().toISOString();
-        this.saveCurrentExperiment();
+        
+        try {
+            this.saveCurrentExperiment();
+            console.log('Experiment saved successfully');
+        } catch (error) {
+            console.error('Error saving experiment:', error);
+            this.showMessage('Error saving results, please try again', 'error');
+        }
     }
 
-    saveCurrentExperiment() {
+    async saveCurrentExperiment() {
         if (!this.currentExperiment) return;
         
-        const experiments = JSON.parse(localStorage.getItem('pikaExperiments') || '[]');
+        const experiments = JSON.parse(localStorage.getItem('sbs_experiments') || '[]');
         const index = experiments.findIndex(exp => exp.id === this.currentExperiment.id);
         
         if (index >= 0) {
             experiments[index] = this.currentExperiment;
-            localStorage.setItem('pikaExperiments', JSON.stringify(experiments));
+            localStorage.setItem('sbs_experiments', JSON.stringify(experiments));
+            
+            // Try to sync with GitHub if token is available
+            await this.syncWithGitHub(experiments);
+        }
+    }
+
+    async syncWithGitHub(experiments) {
+        const savedToken = localStorage.getItem('github_token');
+        if (!savedToken) {
+            console.log('No GitHub token available, skipping sync');
+            return;
+        }
+
+        const githubConfig = {
+            owner: 'WellyXY',
+            repo: 'side_by_side',
+            dataFile: 'experiments-data.json'
+        };
+
+        try {
+            console.log('Syncing experiment results to GitHub...');
+            
+            // First get the current file SHA
+            const getResponse = await fetch(`https://api.github.com/repos/${githubConfig.owner}/${githubConfig.repo}/contents/${githubConfig.dataFile}`, {
+                headers: {
+                    'Authorization': `token ${savedToken}`,
+                    'Accept': 'application/vnd.github.v3+json'
+                }
+            });
+
+            let sha = null;
+            if (getResponse.ok) {
+                const fileData = await getResponse.json();
+                sha = fileData.sha;
+            }
+
+            const content = {
+                experiments: experiments,
+                lastUpdated: new Date().toISOString()
+            };
+
+            const encodedContent = btoa(JSON.stringify(content, null, 2));
+
+            const requestBody = {
+                message: `Update experiment results - ${new Date().toISOString()}`,
+                content: encodedContent
+            };
+
+            if (sha) {
+                requestBody.sha = sha;
+            }
+
+            const putResponse = await fetch(`https://api.github.com/repos/${githubConfig.owner}/${githubConfig.repo}/contents/${githubConfig.dataFile}`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `token ${savedToken}`,
+                    'Accept': 'application/vnd.github.v3+json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestBody)
+            });
+
+            if (putResponse.ok) {
+                console.log('Successfully synced experiment results to GitHub');
+            } else {
+                console.warn('Failed to sync to GitHub:', putResponse.status);
+            }
+        } catch (error) {
+            console.error('Error syncing to GitHub:', error);
         }
     }
 }

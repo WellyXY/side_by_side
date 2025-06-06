@@ -70,9 +70,19 @@ class ExperimentManager {
         };
         this.currentPairs = [];
         this.deleteTargetId = null;
+        
+        // GitHub API 配置
+        this.githubConfig = {
+            owner: 'WellyXY',  // 你的 GitHub 用户名
+            repo: 'side_by_side',  // 你的仓库名
+            dataFile: 'experiments-data.json',  // 数据文件名
+            // 注意: 在生产环境中，应该使用环境变量或更安全的方式存储 token
+            token: null  // 需要设置 GitHub Personal Access Token
+        };
     }
 
     init() {
+        this.initGithubSettings();
         this.loadExperiments();
         this.bindEvents();
         this.updateStatistics();
@@ -86,6 +96,15 @@ class ExperimentManager {
 
         // Create experiment button
         document.getElementById('createExperiment').addEventListener('click', () => this.createExperiment());
+
+        // Clear all data button
+        document.getElementById('clearAllData').addEventListener('click', () => this.clearAllData());
+
+        // GitHub settings events
+        document.getElementById('githubSettings').addEventListener('click', () => this.showGithubSettings());
+        document.getElementById('testConnection').addEventListener('click', () => this.testGithubConnection());
+        document.getElementById('saveGithubSettings').addEventListener('click', () => this.saveGithubSettings());
+        document.getElementById('cancelGithubSettings').addEventListener('click', () => this.hideGithubSettings());
 
         // Modal events
         document.getElementById('confirmDelete').addEventListener('click', () => this.confirmDelete());
@@ -192,8 +211,37 @@ class ExperimentManager {
         const folderA = document.getElementById('folderA').value;
         const folderB = document.getElementById('folderB').value;
         
+        // Debug information
+        console.log('=== Form Validation Debug ===');
+        console.log('Experiment Name:', name ? `"${name}"` : 'EMPTY');
+        console.log('Folder A:', folderA || 'NOT SELECTED');
+        console.log('Folder B:', folderB || 'NOT SELECTED');
+        console.log('Folders different:', folderA && folderB && folderA !== folderB);
+        console.log('Current pairs:', this.currentPairs.length);
+        
         const isValid = name && folderA && folderB && folderA !== folderB && this.currentPairs.length > 0;
-        document.getElementById('createExperiment').disabled = !isValid;
+        console.log('Form is valid:', isValid);
+        console.log('Button disabled:', !isValid);
+        console.log('===============================');
+        
+        const button = document.getElementById('createExperiment');
+        button.disabled = !isValid;
+        
+        // Update button text to show what's missing
+        if (!isValid) {
+            let missing = [];
+            if (!name) missing.push('experiment name');
+            if (!folderA) missing.push('folder A');
+            if (!folderB) missing.push('folder B');
+            if (folderA && folderB && folderA === folderB) missing.push('different folders');
+            if (this.currentPairs.length === 0) missing.push('video pairs');
+            
+            button.textContent = `Missing: ${missing.join(', ')}`;
+            button.style.opacity = '0.6';
+        } else {
+            button.textContent = 'Create Experiment';
+            button.style.opacity = '1';
+        }
     }
 
     createExperiment() {
@@ -348,8 +396,21 @@ class ExperimentManager {
     }
 
     showUserSelectionModal(experimentId) {
+        console.log('=== showUserSelectionModal START ===');
+        console.log('experimentId:', experimentId);
+        
         const experiment = this.experiments.find(exp => exp.id === experimentId);
-        if (!experiment) return;
+        if (!experiment) {
+            console.error('Experiment not found:', experimentId);
+            return;
+        }
+        
+        // Remove any existing modal first
+        const existingModal = document.getElementById('userSelectionModal');
+        if (existingModal) {
+            existingModal.remove();
+            console.log('Removed existing modal');
+        }
         
         // Find the next available user ID
         const usedUserIds = Object.keys(experiment.userSessions || {});
@@ -361,102 +422,105 @@ class ExperimentManager {
                 break;
             }
         }
+        console.log('Suggested user ID:', suggestedUserId);
         
-        // Create and show user selection modal
+        // Create modal with inline event handlers for maximum compatibility
         const modal = document.createElement('div');
         modal.className = 'modal';
         modal.id = 'userSelectionModal';
+        modal.style.display = 'flex';
         modal.innerHTML = `
             <div class="modal-content">
                 <h3>Join Experiment: ${experiment.name}</h3>
                 <div class="user-selection">
-                    <label for="userId">User ID (1-10):</label>
-                    <select id="userId" required>
+                    <label for="modalUserId">User ID (1-10):</label>
+                    <select id="modalUserId" required onchange="window.updateUserStatsHandler('${experimentId}', this.value)">
                         <option value="">Select User ID</option>
                         ${Array.from({length: 10}, (_, i) => {
                             const userId = `user${i+1}`;
                             const isUsed = usedUserIds.includes(userId);
                             const selected = userId === suggestedUserId ? 'selected' : '';
-                            return `<option value="${userId}" ${selected}>${userId}${isUsed ? ' (已使用)' : ''}</option>`;
+                            return `<option value="${userId}" ${selected}>${userId}${isUsed ? ' (Used)' : ''}</option>`;
                         }).join('')}
                     </select>
                 </div>
-                <div class="user-stats" id="userStats" style="display: none;">
+                <div class="user-stats" id="modalUserStats" style="display: none;">
                     <h4>Your Previous Sessions:</h4>
-                    <div id="userPreviousSessions"></div>
+                    <div id="modalUserPreviousSessions"></div>
                 </div>
                 <div class="modal-actions">
-                    <button id="startNewRound" class="action-btn start-btn">Start New Round</button>
-                    <button id="cancelUserSelection" class="action-btn">Cancel</button>
+                    <button onclick="window.startUserRoundHandler('${experimentId}')" class="action-btn start-btn">Start New Round</button>
+                    <button onclick="window.cancelModalHandler()" class="action-btn">Cancel</button>
                 </div>
             </div>
         `;
         
         document.body.appendChild(modal);
-        modal.style.display = 'flex';
+        console.log('Modal added to DOM');
         
-        // Auto-select suggested user and show stats if available
-        if (suggestedUserId) {
-            this.updateUserStats(experimentId, suggestedUserId);
-        }
-        
-        // Bind events with more direct approach
-        const userSelect = modal.querySelector('#userId');
-        const startButton = modal.querySelector('#startNewRound');
-        const cancelButton = modal.querySelector('#cancelUserSelection');
-        
-        console.log('Binding events to:', { userSelect, startButton, cancelButton }); // Debug info
-        
-        if (!startButton) {
-            console.error('Start button not found!');
-            return;
-        }
-        
-        userSelect.addEventListener('change', (e) => {
-            this.updateUserStats(experimentId, e.target.value);
-        });
-        
-        // Use a more direct approach for the start button
-        startButton.onclick = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            const userId = userSelect.value;
-            console.log('Start button clicked, userId:', userId); // Debug info
+        // Set up global event handlers
+        window.startUserRoundHandler = (expId) => {
+            console.log('=== Start button clicked ===');
+            const userId = document.getElementById('modalUserId').value;
+            console.log('Selected user ID:', userId);
             
             if (!userId) {
-                alert('Please select a User ID');
+                alert('Please select a user ID');
                 return;
             }
             
             try {
-                console.log('Calling startUserRound...'); // Debug info
-                this.startUserRound(experimentId, userId);
-                // Remove modal after a short delay to allow processing
-                setTimeout(() => {
-                    if (document.body.contains(modal)) {
-                        document.body.removeChild(modal);
-                    }
-                }, 50);
+                console.log('Calling startUserRound...');
+                this.startUserRound(expId, userId);
+                const modal = document.getElementById('userSelectionModal');
+                if (modal) {
+                    modal.remove();
+                    console.log('Modal removed');
+                }
             } catch (error) {
-                console.error('Error starting user round:', error);
+                console.error('Error in startUserRound:', error);
                 alert('Error starting round: ' + error.message);
             }
         };
         
-        cancelButton.onclick = (e) => {
-            e.preventDefault();
-            document.body.removeChild(modal);
+        window.cancelModalHandler = () => {
+            console.log('=== Cancel button clicked ===');
+            const modal = document.getElementById('userSelectionModal');
+            if (modal) {
+                modal.remove();
+                console.log('Modal cancelled and removed');
+            }
         };
+        
+        window.updateUserStatsHandler = (expId, userId) => {
+            console.log('=== User selection changed ===', userId);
+            this.updateModalUserStats(expId, userId);
+        };
+        
+        // Auto-select suggested user and show stats
+        if (suggestedUserId) {
+            console.log('Auto-selecting user:', suggestedUserId);
+            this.updateModalUserStats(experimentId, suggestedUserId);
+        }
+        
+        // Add click outside to close
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                console.log('Clicked outside modal, closing');
+                modal.remove();
+            }
+        });
+        
+        console.log('=== Modal setup complete ===');
     }
 
-    updateUserStats(experimentId, userId) {
+    updateModalUserStats(experimentId, userId) {
         const experiment = this.experiments.find(exp => exp.id === experimentId);
-        const userStats = document.getElementById('userStats');
-        const userPreviousSessions = document.getElementById('userPreviousSessions');
+        const userStats = document.getElementById('modalUserStats');
+        const userPreviousSessions = document.getElementById('modalUserPreviousSessions');
         
-        if (!userId) {
-            userStats.style.display = 'none';
+        if (!userId || !userStats || !userPreviousSessions) {
+            if (userStats) userStats.style.display = 'none';
             return;
         }
         
@@ -478,44 +542,27 @@ class ExperimentManager {
     }
 
     startUserRound(experimentId, userId) {
-        console.log('=== startUserRound START ===');
-        console.log('Parameters:', { experimentId, userId });
+        console.log('=== startUserRound ===', experimentId, userId);
         
-        // Validate inputs
+        // Basic validation
         if (!experimentId || !userId) {
-            const error = 'Missing experimentId or userId';
-            console.error(error);
-            throw new Error(error);
+            throw new Error('Missing experiment ID or user ID');
         }
         
         const experiment = this.experiments.find(exp => exp.id === experimentId);
         if (!experiment) {
-            const error = `Experiment not found: ${experimentId}`;
-            console.error(error);
-            throw new Error(error);
+            throw new Error('Experiment not found');
         }
         
-        console.log('Found experiment:', experiment.name);
-        
-        // Check if experiment has pairs
         if (!experiment.pairs || experiment.pairs.length === 0) {
-            const error = 'Experiment has no video pairs';
-            console.error(error);
-            throw new Error(error);
+            throw new Error('No video pairs found');
         }
         
-        console.log('Experiment has', experiment.pairs.length, 'pairs');
+        console.log('Validation passed, creating round...');
         
-        // Initialize user session if not exists
-        if (!experiment.userSessions) {
-            experiment.userSessions = {};
-            console.log('Initialized userSessions object');
-        }
-        
-        if (!experiment.userSessions[userId]) {
-            experiment.userSessions[userId] = { rounds: [] };
-            console.log('Initialized user session for', userId);
-        }
+        // Initialize user session
+        if (!experiment.userSessions) experiment.userSessions = {};
+        if (!experiment.userSessions[userId]) experiment.userSessions[userId] = { rounds: [] };
         
         // Create new round
         const roundId = `round_${Date.now()}`;
@@ -529,32 +576,15 @@ class ExperimentManager {
         experiment.userSessions[userId].rounds.push(newRound);
         experiment.lastModified = new Date().toISOString();
         
-        console.log('Created new round:', roundId, 'for user:', userId);
-        console.log('User now has', experiment.userSessions[userId].rounds.length, 'rounds');
+        console.log('Round created:', roundId);
         
-        // Save experiments
-        try {
-            this.saveExperiments();
-            console.log('Experiments saved successfully');
-        } catch (error) {
-            console.error('Error saving experiments:', error);
-            throw new Error('Failed to save experiment data');
-        }
+        // Save and redirect
+        this.saveExperiments();
+        localStorage.setItem('currentExperimentId', experimentId);
+        localStorage.setItem('currentUserId', userId);
+        localStorage.setItem('currentRoundId', roundId);
         
-        // Set current session info
-        try {
-            localStorage.setItem('currentExperimentId', experimentId);
-            localStorage.setItem('currentUserId', userId);
-            localStorage.setItem('currentRoundId', roundId);
-            console.log('Session info stored in localStorage');
-        } catch (error) {
-            console.error('Error storing session info:', error);
-            throw new Error('Failed to store session information');
-        }
-        
-        console.log('=== Redirecting to index.html ===');
-        
-        // Redirect immediately - no need for delay
+        console.log('Redirecting to evaluation...');
         window.location.href = 'index.html';
     }
 
@@ -601,6 +631,40 @@ class ExperimentManager {
         }
     }
 
+    clearAllData() {
+        if (confirm('⚠️ Warning!\n\nThis will delete all experiment data and user session records. This action cannot be undone.\n\nAre you sure you want to clear all data?')) {
+            // Clear all localStorage keys related to the application
+            localStorage.removeItem('pikaExperiments');
+            localStorage.removeItem('currentUserId');
+            localStorage.removeItem('currentRoundId');
+            localStorage.removeItem('currentExperimentId');
+            localStorage.removeItem('experimentMode');
+            localStorage.removeItem('ratings');
+            localStorage.removeItem('videoPairs');
+            localStorage.removeItem('currentPairIndex');
+            
+            // Clear sessionStorage as well
+            sessionStorage.clear();
+            
+            // Reset class data
+            this.experiments = [];
+            this.currentPairs = [];
+            
+            // Update UI
+            this.renderExperiments();
+            this.updateStatistics();
+            this.resetForm();
+            
+            // Show success message
+            this.showMessage('All data cleared! Page will refresh...', 'success');
+            
+            // Refresh page after a short delay
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        }
+    }
+
     updateStatistics() {
         const total = this.experiments.length;
         
@@ -625,49 +689,282 @@ class ExperimentManager {
         document.getElementById('avgCompletion').textContent = `${totalUsers} Users`;
     }
 
-    loadExperiments() {
-        const saved = localStorage.getItem('pikaExperiments');
-        if (saved) {
-            try {
-                this.experiments = JSON.parse(saved);
-            } catch (e) {
-                console.error('Error loading experiments:', e);
+    async loadExperiments() {
+        // 优先从 GitHub 加载，失败则使用本地存储
+        const githubSuccess = await this.loadExperimentsFromGitHub();
+        if (!githubSuccess) {
+            this.loadExperimentsFromLocal();
+        }
+        this.renderExperiments();
+        this.updateStatistics();
+    }
+
+    async saveExperiments() {
+        // 同时保存到 GitHub 和本地存储
+        await this.saveExperimentsToGitHub();
+        this.saveExperimentsToLocal();
+    }
+
+    // GitHub API 相关方法
+    async loadExperimentsFromGitHub() {
+        try {
+            console.log('Loading experiments from GitHub...');
+            
+            // 首先尝试从 GitHub 加载数据
+            const response = await fetch(`https://api.github.com/repos/${this.githubConfig.owner}/${this.githubConfig.repo}/contents/${this.githubConfig.dataFile}`, {
+                headers: this.githubConfig.token ? {
+                    'Authorization': `token ${this.githubConfig.token}`,
+                    'Accept': 'application/vnd.github.v3+json'
+                } : {
+                    'Accept': 'application/vnd.github.v3+json'
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                const content = JSON.parse(atob(data.content));
+                this.experiments = content.experiments || [];
+                this.githubConfig.sha = data.sha;  // 保存 SHA 用于更新
+                console.log('Successfully loaded experiments from GitHub:', this.experiments.length);
+                return true;
+            } else if (response.status === 404) {
+                console.log('Experiments file not found on GitHub, will create new one');
                 this.experiments = [];
+                return true;
+            } else {
+                throw new Error(`GitHub API error: ${response.status}`);
             }
+        } catch (error) {
+            console.error('Failed to load from GitHub:', error);
+            // 回退到本地存储
+            this.loadExperimentsFromLocal();
+            return false;
         }
     }
 
-    saveExperiments() {
-        localStorage.setItem('pikaExperiments', JSON.stringify(this.experiments));
+    async saveExperimentsToGitHub() {
+        if (!this.githubConfig.token) {
+            console.warn('No GitHub token provided, falling back to local storage');
+            this.saveExperimentsToLocal();
+            return false;
+        }
+
+        try {
+            console.log('Saving experiments to GitHub...');
+            
+            const content = {
+                experiments: this.experiments,
+                lastUpdated: new Date().toISOString()
+            };
+
+            const encodedContent = btoa(JSON.stringify(content, null, 2));
+
+            const requestBody = {
+                message: `Update experiments data - ${new Date().toISOString()}`,
+                content: encodedContent
+            };
+
+            // 如果文件已存在，需要提供 SHA
+            if (this.githubConfig.sha) {
+                requestBody.sha = this.githubConfig.sha;
+            }
+
+            const response = await fetch(`https://api.github.com/repos/${this.githubConfig.owner}/${this.githubConfig.repo}/contents/${this.githubConfig.dataFile}`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `token ${this.githubConfig.token}`,
+                    'Accept': 'application/vnd.github.v3+json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestBody)
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                this.githubConfig.sha = result.content.sha;
+                console.log('Successfully saved experiments to GitHub');
+                this.showMessage('Experiments saved to GitHub successfully!', 'success');
+                return true;
+            } else {
+                throw new Error(`GitHub API error: ${response.status}`);
+            }
+        } catch (error) {
+            console.error('Failed to save to GitHub:', error);
+            this.showMessage('Failed to save to GitHub, saved locally instead', 'warning');
+            this.saveExperimentsToLocal();
+            return false;
+        }
+    }
+
+    // 本地存储方法（作为备份）
+    loadExperimentsFromLocal() {
+        try {
+            const saved = localStorage.getItem('sbs_experiments');
+            this.experiments = saved ? JSON.parse(saved) : [];
+            console.log('Loaded experiments from local storage:', this.experiments.length);
+        } catch (error) {
+            console.error('Error loading from local storage:', error);
+            this.experiments = [];
+        }
+    }
+
+    saveExperimentsToLocal() {
+        try {
+            localStorage.setItem('sbs_experiments', JSON.stringify(this.experiments));
+            console.log('Saved experiments to local storage');
+        } catch (error) {
+            console.error('Error saving to local storage:', error);
+        }
     }
 
     showMessage(text, type = 'info') {
-        // Simple message notification
-        const existingMessage = document.querySelector('.temp-message');
-        if (existingMessage) {
-            existingMessage.remove();
-        }
+        const messageContainer = document.getElementById('messageContainer') || this.createMessageContainer();
+        
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${type}`;
+        messageDiv.textContent = text;
+        
+        messageContainer.appendChild(messageDiv);
+        messageContainer.style.display = 'block';
+        
+        setTimeout(() => {
+            messageDiv.style.opacity = '0';
+            setTimeout(() => {
+                if (messageDiv.parentNode) {
+                    messageDiv.parentNode.removeChild(messageDiv);
+                }
+                if (messageContainer.children.length === 0) {
+                    messageContainer.style.display = 'none';
+                }
+            }, 300);
+        }, 3000);
+    }
 
-        const message = document.createElement('div');
-        message.className = `temp-message ${type}`;
-        message.style.cssText = `
+    createMessageContainer() {
+        const container = document.createElement('div');
+        container.id = 'messageContainer';
+        container.style.cssText = `
             position: fixed;
             top: 20px;
             right: 20px;
-            padding: 15px 25px;
-            background: ${type === 'success' ? '#d4edda' : type === 'error' ? '#f8d7da' : '#d1ecf1'};
-            color: ${type === 'success' ? '#155724' : type === 'error' ? '#721c24' : '#0c5460'};
-            border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-            z-index: 1001;
-            font-weight: 600;
+            z-index: 10000;
+            max-width: 400px;
         `;
-        message.textContent = text;
-        document.body.appendChild(message);
+        document.body.appendChild(container);
+        return container;
+    }
 
-        setTimeout(() => {
-            message.remove();
-        }, 3000);
+    // GitHub Settings Methods
+    showGithubSettings() {
+        const modal = document.getElementById('githubModal');
+        const tokenInput = document.getElementById('githubToken');
+        
+        // Load saved token if exists
+        const savedToken = localStorage.getItem('github_token');
+        if (savedToken) {
+            tokenInput.value = savedToken;
+            this.githubConfig.token = savedToken;
+        }
+        
+        this.updateSyncStatus();
+        modal.style.display = 'flex';
+    }
+
+    hideGithubSettings() {
+        document.getElementById('githubModal').style.display = 'none';
+    }
+
+    updateSyncStatus() {
+        const statusElement = document.getElementById('syncStatus');
+        const dot = statusElement.querySelector('.status-dot');
+        const text = statusElement.querySelector('span:last-child');
+        
+        if (this.githubConfig.token) {
+            dot.className = 'status-dot online';
+            text.textContent = 'Connected to GitHub (data will sync automatically)';
+        } else {
+            dot.className = 'status-dot offline';
+            text.textContent = 'Not connected to GitHub (using local storage only)';
+        }
+    }
+
+    async testGithubConnection() {
+        const tokenInput = document.getElementById('githubToken');
+        const token = tokenInput.value.trim();
+        
+        if (!token) {
+            this.showMessage('Please enter a GitHub token first', 'error');
+            return;
+        }
+
+        const statusElement = document.getElementById('syncStatus');
+        const dot = statusElement.querySelector('.status-dot');
+        const text = statusElement.querySelector('span:last-child');
+        
+        // Show testing status
+        dot.className = 'status-dot testing';
+        text.textContent = 'Testing connection...';
+
+        try {
+            const response = await fetch(`https://api.github.com/repos/${this.githubConfig.owner}/${this.githubConfig.repo}`, {
+                headers: {
+                    'Authorization': `token ${token}`,
+                    'Accept': 'application/vnd.github.v3+json'
+                }
+            });
+
+            if (response.ok) {
+                dot.className = 'status-dot online';
+                text.textContent = 'Connection successful! ✅';
+                this.showMessage('GitHub connection test passed!', 'success');
+                return true;
+            } else {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+        } catch (error) {
+            console.error('GitHub connection test failed:', error);
+            dot.className = 'status-dot offline';
+            text.textContent = `Connection failed: ${error.message}`;
+            this.showMessage('GitHub connection test failed. Check your token.', 'error');
+            return false;
+        }
+    }
+
+    async saveGithubSettings() {
+        const tokenInput = document.getElementById('githubToken');
+        const token = tokenInput.value.trim();
+        
+        if (!token) {
+            this.showMessage('Please enter a GitHub token', 'error');
+            return;
+        }
+
+        // Test connection first
+        const connectionSuccess = await this.testGithubConnection();
+        if (!connectionSuccess) {
+            return;
+        }
+
+        // Save token
+        this.githubConfig.token = token;
+        localStorage.setItem('github_token', token);
+        
+        // Try to load existing data from GitHub
+        await this.loadExperimentsFromGitHub();
+        this.renderExperiments();
+        this.updateStatistics();
+        
+        this.hideGithubSettings();
+        this.showMessage('GitHub sync enabled! Data will now be shared across all users.', 'success');
+    }
+
+    // Initialize GitHub settings on load
+    initGithubSettings() {
+        const savedToken = localStorage.getItem('github_token');
+        if (savedToken) {
+            this.githubConfig.token = savedToken;
+            console.log('GitHub token loaded from localStorage');
+        }
     }
 }
 

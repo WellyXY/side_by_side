@@ -13,8 +13,41 @@
             <p>Create and manage SBS video quality comparison experiments</p>
             <nav>
                 <a href="index.html" class="nav-btn">Back to SBS Test</a>
+                <button id="clearAllData" class="clear-data-btn">🗑️ Clear All Data</button>
+                <button id="githubSettings" class="github-settings-btn">⚙️ GitHub Sync</button>
             </nav>
         </header>
+
+        <!-- GitHub Settings Modal -->
+        <div id="githubModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <h2>📁 GitHub Data Sync Settings</h2>
+                <p>Enable GitHub synchronization to share experiment data across all users.</p>
+                
+                <div class="form-group">
+                    <label for="githubToken">GitHub Personal Access Token:</label>
+                    <input type="password" id="githubToken" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" />
+                    <small>
+                        Need a token? 
+                        <a href="https://github.com/settings/tokens" target="_blank">Create one here</a>
+                        (需要 'repo' 权限)
+                    </small>
+                </div>
+                
+                <div class="sync-status">
+                    <div id="syncStatus" class="status-indicator">
+                        <span class="status-dot offline"></span>
+                        <span>Not connected to GitHub</span>
+                    </div>
+                </div>
+                
+                <div class="modal-actions">
+                    <button id="testConnection" class="test-btn">Test Connection</button>
+                    <button id="saveGithubSettings" class="save-btn">Save & Enable Sync</button>
+                    <button id="cancelGithubSettings" class="cancel-btn">Cancel</button>
+                </div>
+            </div>
+        </div>
 
         <div class="main-content">
             <!-- Create New Experiment Section -->
