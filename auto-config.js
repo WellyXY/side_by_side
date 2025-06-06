@@ -8,7 +8,7 @@
         
         if (!currentToken) {
             // 使用base64编码的token
-            const encodedToken = 'Z2hwX2g3cjI5MHlVQUNRTUt1cmpMQlVvUkp3MWM1dldzRTI4MFE3UQ==';
+            const encodedToken = 'Z2hwX0tQUVlsZ3A5eWs3cWtIOHZ3OEI4OGh1MEU1dXIxNDBhd3kzcAo=';
             
             try {
                 const decodedToken = atob(encodedToken);
