@@ -16,9 +16,6 @@
                 <button id="clearAllData" class="clear-data-btn">🗑️ Clear All Data</button>
                 <button id="githubSettings" class="github-settings-btn">⚙️ GitHub Sync</button>
             </nav>
-            <div class="header-actions">
-                <a href="create-experiment-v2.html" class="btn">Create New Experiment</a>
-            </div>
         </header>
 
         <!-- GitHub Settings Modal -->
@@ -61,7 +58,7 @@
                         <div class="card-icon">🎬</div>
                         <h3>Create New Experiment</h3>
                         <p>Set up a new side-by-side video comparison experiment</p>
-                        <a href="create-experiment-v2.html" class="action-btn create-btn">Create Experiment</a>
+                        <a href="create-experiment.html" class="action-btn create-btn">Create Experiment</a>
                     </div>
                     
                     <div class="action-card manage-card">
@@ -125,10 +122,9 @@
         </div>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
-        // The main script is now a module to use imports
-        import E from './experiment-manager.js';
+    <script>
+        document.write(`<script src="auto-config.js?v=${new Date().getTime()}"><\/script>`);
+        document.write(`<script src="experiment-manager.js?v=${new Date().getTime()}"><\/script>`);
     </script>
 </body>
 </html> 

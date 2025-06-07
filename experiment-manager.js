@@ -1,5 +1,3 @@
-import { db, collection, getDocs, doc, setDoc, addDoc, deleteDoc } from './firebase-config.js';
-
 class ExperimentManager {
     constructor() {
         this.experiments = [];
@@ -83,9 +81,15 @@ class ExperimentManager {
         };
     }
 
-    async init() {
+    init() {
+        this.initGithubSettings();
         this.bindEvents();
-        this.loadExperiments();
+        this.setupPageVisibilitySync();
+        
+        // 延迟加载数据，确保auto-config.js有时间设置token
+        setTimeout(() => {
+            this.loadExperiments();
+        }, 200);
     }
 
     // 设置页面可见性同步 - 确保不同浏览器数据一致
@@ -304,7 +308,7 @@ class ExperimentManager {
         }
     }
 
-    async createExperiment() {
+    createExperiment() {
         const name = document.getElementById('experimentName').value.trim();
         const description = document.getElementById('experimentDescription').value.trim();
         const folderA = document.getElementById('folderA').value;
@@ -834,26 +838,27 @@ class ExperimentManager {
     }
 
     async loadExperiments() {
-        this.showLoading('Loading experiments from Firebase...');
-        const querySnapshot = await getDocs(collection(db, "experiments"));
-        this.experiments = [];
-        querySnapshot.forEach((doc) => {
-            this.experiments.push({ id: doc.id, ...doc.data() });
-        });
-        this.renderExperiments();
-        this.updateStatistics();
+        this.showLoading('Loading experiments from GitHub...');
+        const data = await window.githubDataManager.loadData();
+        if (data && data.content && data.content.experiments) {
+            this.experiments = data.content.experiments;
+            this.renderExperiments();
+            this.updateStatistics();
+        } else {
+            this.showMessage('Failed to load experiments.', 'error');
+        }
         this.hideLoading();
     }
 
     async saveExperiments() {
-        this.showLoading('Saving experiments to Firebase...');
+        this.showLoading('Saving experiments to GitHub...');
         const dataToSave = {
             experiments: this.experiments,
             lastUpdated: new Date().toISOString()
         };
         const success = await window.githubDataManager.saveData(dataToSave, 'Update experiments list');
         if (!success) {
-            this.showMessage('Failed to save experiments to Firebase.', 'error');
+            this.showMessage('Failed to save experiments to GitHub.', 'error');
         }
         this.hideLoading();
     }
@@ -930,29 +935,73 @@ class ExperimentManager {
     }
 
     async testGithubConnection() {
-        this.showLoading('Testing GitHub connection...');
-        // Use the global manager for the test
-        const data = await window.githubDataManager.loadData();
-        if (data) {
-            this.showMessage(`Connection successful! Found ${data.content.experiments.length} experiments.`, 'success');
-        } else {
-            this.showMessage('Connection failed. Please check your token and repository details.', 'error');
+        const tokenInput = document.getElementById('githubToken');
+        const token = tokenInput.value.trim();
+        
+        if (!token) {
+            this.showMessage('Please enter a GitHub token first', 'error');
+            return;
         }
-        this.hideLoading();
+
+        const statusElement = document.getElementById('syncStatus');
+        const dot = statusElement.querySelector('.status-dot');
+        const text = statusElement.querySelector('span:last-child');
+        
+        // Show testing status
+        dot.className = 'status-dot testing';
+        text.textContent = 'Testing connection...';
+
+        try {
+            const response = await fetch(`https://api.github.com/repos/${this.githubConfig.owner}/${this.githubConfig.repo}`, {
+                headers: {
+                    'Authorization': `token ${token}`,
+                    'Accept': 'application/vnd.github.v3+json'
+                }
+            });
+
+            if (response.ok) {
+                dot.className = 'status-dot online';
+                text.textContent = 'Connection successful! ✅';
+                this.showMessage('GitHub connection test passed!', 'success');
+                return true;
+            } else {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+        } catch (error) {
+            console.error('GitHub connection test failed:', error);
+            dot.className = 'status-dot offline';
+            text.textContent = `Connection failed: ${error.message}`;
+            this.showMessage('GitHub connection test failed. Check your token.', 'error');
+            return false;
+        }
     }
 
     async saveGithubSettings() {
-        const token = document.getElementById('githubToken').value;
-        if (token) {
-            // Use the globally defined function from auto-config.js
-            configureGitHubToken(token);
-            this.showMessage('GitHub token saved successfully! Loading experiments...', 'success');
-            // Manually trigger experiment loading after token is set
-            await this.loadExperiments();
-            this.hideGithubSettings();
-        } else {
-            this.showMessage('Please enter a valid GitHub token.', 'error');
+        const tokenInput = document.getElementById('githubToken');
+        const token = tokenInput.value.trim();
+        
+        if (!token) {
+            this.showMessage('Please enter a GitHub token', 'error');
+            return;
         }
+
+        // Test connection first
+        const connectionSuccess = await this.testGithubConnection();
+        if (!connectionSuccess) {
+            return;
+        }
+
+        // Save token
+        this.githubConfig.token = token;
+        localStorage.setItem('github_token', token);
+        
+        // Try to load existing data from GitHub
+        await this.loadExperiments();
+        this.renderExperiments();
+        this.updateStatistics();
+        
+        this.hideGithubSettings();
+        this.showMessage('GitHub sync enabled! Data will now be shared across all users.', 'success');
     }
 
     async forceSyncNow() {
@@ -1006,16 +1055,20 @@ class ExperimentManager {
 
     // Initialize GitHub settings on load
     initGithubSettings() {
-        const token = localStorage.getItem('github_token');
-        if (token) {
-            document.getElementById('githubToken').value = token;
+        const savedToken = localStorage.getItem('github_token');
+        if (savedToken) {
+            this.githubConfig.token = savedToken;
+            console.log('GitHub token loaded from localStorage:', savedToken.substring(0, 10) + '...');
+        } else {
+            console.warn('No GitHub token found in localStorage');
         }
-        // No need to set owner/repo as they are now managed in the global data manager
     }
 }
 
-// Export for module usage
-export default new ExperimentManager();
+// Initialize experiment manager
+const experimentManager = new ExperimentManager();
+// 暴露到window对象供auto-config.js访问
+window.experimentManager = experimentManager;
 
 document.addEventListener('DOMContentLoaded', () => {
     experimentManager.init();
