@@ -1111,6 +1111,35 @@ class ExperimentManager {
     }
 }
 
+// Cloud Sync Functions
+function showCloudSyncModal() {
+    document.getElementById('cloudSyncModal').style.display = 'block';
+    updateCloudSyncStatusDisplay();
+}
+
+function hideCloudSyncModal() {
+    document.getElementById('cloudSyncModal').style.display = 'none';
+}
+
+function updateCloudSyncStatusDisplay() {
+    if (!window.cloudSyncManager) return;
+    
+    const config = window.cloudSyncManager.getConfig();
+    const localStatus = document.getElementById('localStatus');
+    const cloudStatus = document.getElementById('cloudStatus');
+    const cloudStatusText = document.getElementById('cloudStatusText');
+    
+    if (config.useCloudSync) {
+        localStatus.style.color = '#ccc';
+        cloudStatus.style.color = '#28a745';
+        cloudStatusText.textContent = '已启用，数据自动同步到云端';
+    } else {
+        localStatus.style.color = '#28a745';
+        cloudStatus.style.color = '#ccc';
+        cloudStatusText.textContent = '未配置';
+    }
+}
+
 // Initialize experiment manager
 const experimentManager = new ExperimentManager();
 // 暴露到window对象供auto-config.js访问
@@ -1118,4 +1147,68 @@ window.experimentManager = experimentManager;
 
 document.addEventListener('DOMContentLoaded', () => {
     experimentManager.init();
+    
+    // 设置云端同步事件监听器
+    setTimeout(() => {
+        // Enable Cloud Sync
+        const enableBtn = document.getElementById('enableCloudSync');
+        if (enableBtn) {
+            enableBtn.addEventListener('click', async () => {
+                const token = document.getElementById('cloudGithubToken').value.trim();
+                if (!token) {
+                    alert('请输入GitHub Personal Access Token');
+                    return;
+                }
+                
+                if (window.cloudSyncManager) {
+                    try {
+                        const success = await window.cloudSyncManager.enableCloudSync(token);
+                        if (success) {
+                            alert('✅ 云端同步已启用！评价数据将自动同步到GitHub。');
+                            updateCloudSyncStatusDisplay();
+                            hideCloudSyncModal();
+                        } else {
+                            alert('❌ 启用云端同步失败，请检查Token是否有效。');
+                        }
+                    } catch (error) {
+                        alert(`❌ 启用云端同步失败: ${error.message}`);
+                    }
+                }
+            });
+        }
+        
+        // Disable Cloud Sync
+        const disableBtn = document.getElementById('disableCloudSync');
+        if (disableBtn) {
+            disableBtn.addEventListener('click', () => {
+                if (window.cloudSyncManager) {
+                    window.cloudSyncManager.disableCloudSync();
+                    alert('☁️ 云端同步已禁用，将使用本地存储模式。');
+                    updateCloudSyncStatusDisplay();
+                    hideCloudSyncModal();
+                }
+            });
+        }
+        
+        // Test Cloud Sync
+        const testBtn = document.getElementById('testCloudSync');
+        if (testBtn) {
+            testBtn.addEventListener('click', async () => {
+                if (window.cloudSyncManager) {
+                    try {
+                        await window.cloudSyncManager.manualSync();
+                        alert('✅ 测试同步成功！数据已上传到云端。');
+                    } catch (error) {
+                        alert(`❌ 测试同步失败: ${error.message}`);
+                    }
+                }
+            });
+        }
+        
+        // Cancel Cloud Sync Modal
+        const cancelBtn = document.getElementById('cancelCloudSync');
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', hideCloudSyncModal);
+        }
+    }, 500);
 }); 

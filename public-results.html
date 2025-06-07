@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>公共评价结果 - SBS Platform</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .results-dashboard {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .summary-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        
+        .summary-card h3 {
+            margin: 0 0 10px 0;
+            font-size: 2.5rem;
+            font-weight: bold;
+        }
+        
+        .summary-card p {
+            margin: 0;
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+        
+        .experiments-grid {
+            display: grid;
+            gap: 25px;
+        }
+        
+        .experiment-results {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            border: 2px solid #f0f0f0;
+        }
+        
+        .experiment-header {
+            border-bottom: 2px solid #eee;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .experiment-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #333;
+            margin: 0 0 5px 0;
+        }
+        
+        .experiment-meta {
+            color: #666;
+            font-size: 0.9rem;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .results-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+            margin-top: 20px;
+        }
+        
+        .stats-section, .chart-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+        }
+        
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .stat-row:last-child {
+            border-bottom: none;
+        }
+        
+        .chart-container {
+            width: 100%;
+            height: 250px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .user-details {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f0f8ff;
+            border-radius: 8px;
+        }
+        
+        .user-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .user-item {
+            background: white;
+            padding: 12px;
+            border-radius: 6px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .refresh-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 15px 20px;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .refresh-btn:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+        }
+        
+        .no-data {
+            text-align: center;
+            color: #666;
+            padding: 40px;
+            font-size: 1.1rem;
+        }
+        
+        .sync-status {
+            background: #e8f5e8;
+            color: #2d5a2d;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        @media (max-width: 768px) {
+            .results-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .experiment-meta {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎯 公共评价结果</h1>
+            <p>查看所有用户的视频评价数据和统计结果</p>
+            <nav class="header-nav">
+                <a href="index.html" class="nav-btn">返回主页</a>
+                <a href="experiment-manager.html" class="nav-btn">实验管理</a>
+            </nav>
+        </header>
+
+        <div class="results-dashboard">
+            <div class="sync-status" id="syncStatus">
+                📊 数据来源：本地存储 | 实时同步
+            </div>
+
+            <div class="summary-cards" id="summaryCards">
+                <div class="summary-card">
+                    <h3 id="totalExperiments">0</h3>
+                    <p>总实验数</p>
+                </div>
+                <div class="summary-card">
+                    <h3 id="totalUsers">0</h3>
+                    <p>参与用户</p>
+                </div>
+                <div class="summary-card">
+                    <h3 id="totalRatings">0</h3>
+                    <p>总评价数</p>
+                </div>
+                <div class="summary-card">
+                    <h3 id="avgRating">0</h3>
+                    <p>平均评分</p>
+                </div>
+            </div>
+
+            <div class="experiments-grid" id="experimentsGrid">
+                <!-- 实验结果将在这里动态生成 -->
+            </div>
+
+            <div class="no-data" id="noData" style="display: none;">
+                <h3>📭 暂无评价数据</h3>
+                <p>还没有用户完成评价，<a href="experiment-manager.html">创建实验</a>并邀请用户参与吧！</p>
+            </div>
+        </div>
+
+        <button class="refresh-btn" onclick="loadResults()" title="刷新数据">
+            🔄 刷新
+        </button>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="cloud-sync.js"></script>
+    <script>
+        let chartsData = {};
+
+        async function loadResults() {
+            console.log('🔄 Loading public results...');
+            
+            try {
+                // 使用云端同步管理器加载公共结果
+                if (window.cloudSyncManager) {
+                    const publicResults = await window.cloudSyncManager.loadPublicResults();
+                    
+                    if (publicResults && publicResults.experiments.length > 0) {
+                        console.log('📊 Loaded public results:', publicResults.experiments.length, 'experiments');
+                        
+                        // 更新同步状态
+                        updateSyncStatus(publicResults);
+                        
+                        // 显示总体统计
+                        displayOverallStats(publicResults);
+                        
+                        // 显示每个实验的结果
+                        displayExperimentsFromPublic(publicResults.experiments);
+                        return;
+                    }
+                }
+                
+                // 备用：直接从本地存储加载
+                const data = localStorage.getItem('sbs_experiments');
+                if (!data) {
+                    showNoData();
+                    return;
+                }
+
+                const experiments = JSON.parse(data);
+                console.log('📊 Loaded experiments from localStorage:', experiments.length);
+
+                if (experiments.length === 0) {
+                    showNoData();
+                    return;
+                }
+
+                // 计算总体统计
+                calculateOverallStats(experiments);
+                
+                // 显示每个实验的结果
+                displayExperiments(experiments);
+
+            } catch (error) {
+                console.error('Error loading results:', error);
+                document.getElementById('syncStatus').innerHTML = `❌ 数据加载失败: ${error.message}`;
+                showNoData();
+            }
+        }
+
+        function updateSyncStatus(publicResults) {
+            const syncStatus = document.getElementById('syncStatus');
+            const lastUpdated = new Date(publicResults.lastUpdated).toLocaleString();
+            
+            if (window.cloudSyncManager?.config.syncToGitHub) {
+                syncStatus.innerHTML = `☁️ 云端数据 | 最后更新: ${lastUpdated}`;
+                syncStatus.style.backgroundColor = '#e8f0ff';
+            } else {
+                syncStatus.innerHTML = `📱 本地数据 | 生成时间: ${lastUpdated}`;
+                syncStatus.style.backgroundColor = '#e8f5e8';
+            }
+        }
+
+        function displayOverallStats(publicResults) {
+            document.getElementById('totalExperiments').textContent = publicResults.totalExperiments;
+            document.getElementById('totalUsers').textContent = publicResults.totalUsers;
+            document.getElementById('totalRatings').textContent = publicResults.totalRatings;
+            
+            // 计算平均评分
+            const avgRating = publicResults.experiments.length > 0 ? 
+                (publicResults.experiments.reduce((sum, exp) => sum + parseFloat(exp.stats.avgRating), 0) / publicResults.experiments.length).toFixed(2) : 0;
+            document.getElementById('avgRating').textContent = avgRating;
+
+            document.getElementById('noData').style.display = 'none';
+            document.getElementById('experimentsGrid').style.display = 'grid';
+        }
+
+        function displayExperimentsFromPublic(experiments) {
+            const grid = document.getElementById('experimentsGrid');
+            grid.innerHTML = '';
+
+            experiments.forEach(exp => {
+                const card = createExperimentCardFromPublic(exp);
+                grid.appendChild(card);
+            });
+        }
+
+        function createExperimentCardFromPublic(experiment) {
+            const card = document.createElement('div');
+            card.className = 'experiment-results';
+            const chartId = `chart-${experiment.id}`;
+            
+            card.innerHTML = `
+                <div class="experiment-header">
+                    <div class="experiment-title">${experiment.name}</div>
+                    <div class="experiment-meta">
+                        <span>📁 ${experiment.folderA} vs ${experiment.folderB}</span>
+                        <span>📅 ${new Date(experiment.createdAt).toLocaleDateString()}</span>
+                        <span>👥 ${experiment.stats.users.length} 用户</span>
+                        <span>🎯 ${experiment.stats.totalRatings} 评价</span>
+                    </div>
+                </div>
+
+                <div class="results-grid">
+                    <div class="stats-section">
+                        <h4>📊 统计结果</h4>
+                        <div class="stat-row">
+                            <span>${experiment.folderA} 胜出:</span>
+                            <strong>${experiment.stats.leftWins}</strong>
+                        </div>
+                        <div class="stat-row">
+                            <span>${experiment.folderB} 胜出:</span>
+                            <strong>${experiment.stats.rightWins}</strong>
+                        </div>
+                        <div class="stat-row">
+                            <span>平局:</span>
+                            <strong>${experiment.stats.ties}</strong>
+                        </div>
+                        <div class="stat-row">
+                            <span>平均评分:</span>
+                            <strong>${experiment.stats.avgRating}</strong>
+                        </div>
+                        <div class="stat-row">
+                            <span>总轮次:</span>
+                            <strong>${experiment.stats.totalRounds}</strong>
+                        </div>
+                    </div>
+
+                    <div class="chart-section">
+                        <h4>📈 可视化结果</h4>
+                        <div class="chart-container">
+                            <canvas id="${chartId}" width="300" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="user-details">
+                    <h4>👥 参与用户详情 (${experiment.stats.users.length} 人)</h4>
+                    <div class="user-list">
+                        ${experiment.stats.users.map(userId => `
+                            <div class="user-item">
+                                <strong>${userId}</strong><br>
+                                <small>已参与评价</small>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+
+            // 延迟创建图表，确保DOM已渲染
+            setTimeout(() => {
+                createChartFromPublic(chartId, experiment.stats, experiment);
+            }, 100);
+
+            return card;
+        }
+
+        function createChartFromPublic(chartId, stats, experiment) {
+            const ctx = document.getElementById(chartId);
+            if (!ctx) return;
+
+            const chart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: [
+                        `${experiment.folderA} (${stats.leftWins})`,
+                        `${experiment.folderB} (${stats.rightWins})`,
+                        `平局 (${stats.ties})`
+                    ],
+                    datasets: [{
+                        data: [stats.leftWins, stats.rightWins, stats.ties],
+                        backgroundColor: [
+                            '#FF6384',
+                            '#36A2EB',
+                            '#FFCE56'
+                        ],
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 10,
+                                usePointStyle: true
+                            }
+                        }
+                    }
+                }
+            });
+
+            chartsData[chartId] = chart;
+        }
+
+        function calculateOverallStats(experiments) {
+            let totalUsers = new Set();
+            let totalRatings = 0;
+            let allRatings = [];
+            let activeExperiments = 0;
+
+            experiments.forEach(exp => {
+                let hasRatings = false;
+                
+                // 从 userSessions 统计
+                if (exp.userSessions) {
+                    Object.keys(exp.userSessions).forEach(userId => {
+                        totalUsers.add(userId);
+                        const userSession = exp.userSessions[userId];
+                        if (userSession.rounds) {
+                            userSession.rounds.forEach(round => {
+                                if (round.results && round.results.length > 0) {
+                                    hasRatings = true;
+                                    round.results.forEach(result => {
+                                        totalRatings++;
+                                        if (result.rating !== null && result.rating !== undefined) {
+                                            allRatings.push(result.rating);
+                                        }
+                                    });
+                                }
+                            });
+                        }
+                    });
+                }
+
+                // 从 results 数组统计（备用）
+                if (exp.results && exp.results.length > 0) {
+                    hasRatings = true;
+                    exp.results.forEach(result => {
+                        if (result.userId) totalUsers.add(result.userId);
+                        totalRatings++;
+                        if (result.rating !== null && result.rating !== undefined) {
+                            allRatings.push(result.rating);
+                        }
+                    });
+                }
+
+                if (hasRatings) activeExperiments++;
+            });
+
+            const avgRating = allRatings.length > 0 ? 
+                (allRatings.reduce((a, b) => a + b, 0) / allRatings.length).toFixed(2) : 0;
+
+            // 更新统计卡片
+            document.getElementById('totalExperiments').textContent = activeExperiments;
+            document.getElementById('totalUsers').textContent = totalUsers.size;
+            document.getElementById('totalRatings').textContent = totalRatings;
+            document.getElementById('avgRating').textContent = avgRating;
+
+            document.getElementById('noData').style.display = 'none';
+            document.getElementById('experimentsGrid').style.display = 'grid';
+        }
+
+        function displayExperiments(experiments) {
+            const grid = document.getElementById('experimentsGrid');
+            grid.innerHTML = '';
+
+            experiments.forEach(exp => {
+                const stats = calculateExperimentStats(exp);
+                if (stats.totalRatings > 0) {
+                    const card = createExperimentCard(exp, stats);
+                    grid.appendChild(card);
+                }
+            });
+        }
+
+        function calculateExperimentStats(experiment) {
+            const userSessions = experiment.userSessions || {};
+            const users = new Set();
+            const allRatings = [];
+            let totalRounds = 0;
+
+            // 从 userSessions 统计
+            Object.keys(userSessions).forEach(userId => {
+                users.add(userId);
+                const userSession = userSessions[userId];
+                if (userSession.rounds) {
+                    totalRounds += userSession.rounds.length;
+                    userSession.rounds.forEach(round => {
+                        if (round.results) {
+                            round.results.forEach(result => {
+                                if (result.rating !== null && result.rating !== undefined) {
+                                    allRatings.push(result.rating);
+                                }
+                            });
+                        }
+                    });
+                }
+            });
+
+            // 从 results 数组统计（备用）
+            if (experiment.results) {
+                experiment.results.forEach(result => {
+                    if (result.userId) users.add(result.userId);
+                    if (result.rating !== null && result.rating !== undefined) {
+                        allRatings.push(result.rating);
+                    }
+                });
+            }
+
+            const leftWins = allRatings.filter(r => r < 0).length;
+            const rightWins = allRatings.filter(r => r > 0).length;
+            const ties = allRatings.filter(r => r === 0).length;
+
+            return {
+                users: Array.from(users),
+                totalRounds,
+                totalRatings: allRatings.length,
+                leftWins,
+                rightWins,
+                ties,
+                allRatings,
+                avgRating: allRatings.length > 0 ? (allRatings.reduce((a, b) => a + b, 0) / allRatings.length).toFixed(2) : 0
+            };
+        }
+
+        function createExperimentCard(experiment, stats) {
+            const card = document.createElement('div');
+            card.className = 'experiment-results';
+
+            const chartId = `chart-${experiment.id}`;
+            
+            card.innerHTML = `
+                <div class="experiment-header">
+                    <div class="experiment-title">${experiment.name}</div>
+                    <div class="experiment-meta">
+                        <span>📁 ${experiment.folderA} vs ${experiment.folderB}</span>
+                        <span>📅 ${new Date(experiment.createdAt).toLocaleDateString()}</span>
+                        <span>👥 ${stats.users.length} 用户</span>
+                        <span>🎯 ${stats.totalRatings} 评价</span>
+                    </div>
+                </div>
+
+                <div class="results-grid">
+                    <div class="stats-section">
+                        <h4>📊 统计结果</h4>
+                        <div class="stat-row">
+                            <span>${experiment.folderA} 胜出:</span>
+                            <strong>${stats.leftWins}</strong>
+                        </div>
+                        <div class="stat-row">
+                            <span>${experiment.folderB} 胜出:</span>
+                            <strong>${stats.rightWins}</strong>
+                        </div>
+                        <div class="stat-row">
+                            <span>平局:</span>
+                            <strong>${stats.ties}</strong>
+                        </div>
+                        <div class="stat-row">
+                            <span>平均评分:</span>
+                            <strong>${stats.avgRating}</strong>
+                        </div>
+                        <div class="stat-row">
+                            <span>总轮次:</span>
+                            <strong>${stats.totalRounds}</strong>
+                        </div>
+                    </div>
+
+                    <div class="chart-section">
+                        <h4>📈 可视化结果</h4>
+                        <div class="chart-container">
+                            <canvas id="${chartId}" width="300" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="user-details">
+                    <h4>👥 参与用户详情</h4>
+                    <div class="user-list">
+                        ${stats.users.map(userId => {
+                            const userStats = getUserStats(experiment, userId);
+                            return `
+                                <div class="user-item">
+                                    <strong>${userId}</strong><br>
+                                    <small>
+                                        ${userStats.rounds} 轮次 | 
+                                        ${userStats.ratings} 评价 |
+                                        平均: ${userStats.avgRating}
+                                    </small>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `;
+
+            // 延迟创建图表，确保DOM已渲染
+            setTimeout(() => {
+                createChart(chartId, stats, experiment);
+            }, 100);
+
+            return card;
+        }
+
+        function getUserStats(experiment, userId) {
+            const userSession = experiment.userSessions?.[userId];
+            let rounds = 0;
+            let ratings = [];
+
+            if (userSession?.rounds) {
+                rounds = userSession.rounds.length;
+                userSession.rounds.forEach(round => {
+                    if (round.results) {
+                        round.results.forEach(result => {
+                            if (result.rating !== null && result.rating !== undefined) {
+                                ratings.push(result.rating);
+                            }
+                        });
+                    }
+                });
+            }
+
+            const avgRating = ratings.length > 0 ? 
+                (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(2) : 0;
+
+            return {
+                rounds,
+                ratings: ratings.length,
+                avgRating
+            };
+        }
+
+        function createChart(chartId, stats, experiment) {
+            const ctx = document.getElementById(chartId);
+            if (!ctx) return;
+
+            const chart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: [
+                        `${experiment.folderA} (${stats.leftWins})`,
+                        `${experiment.folderB} (${stats.rightWins})`,
+                        `平局 (${stats.ties})`
+                    ],
+                    datasets: [{
+                        data: [stats.leftWins, stats.rightWins, stats.ties],
+                        backgroundColor: [
+                            '#FF6384',
+                            '#36A2EB',
+                            '#FFCE56'
+                        ],
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 10,
+                                usePointStyle: true
+                            }
+                        }
+                    }
+                }
+            });
+
+            chartsData[chartId] = chart;
+        }
+
+        function showNoData() {
+            document.getElementById('noData').style.display = 'block';
+            document.getElementById('experimentsGrid').style.display = 'none';
+            
+            // 重置统计卡片
+            document.getElementById('totalExperiments').textContent = '0';
+            document.getElementById('totalUsers').textContent = '0';
+            document.getElementById('totalRatings').textContent = '0';
+            document.getElementById('avgRating').textContent = '0';
+        }
+
+        // 页面加载时自动刷新数据
+        document.addEventListener('DOMContentLoaded', loadResults);
+
+        // 每30秒自动刷新一次数据
+        setInterval(loadResults, 30000);
+    </script>
+</body>
+</html> 

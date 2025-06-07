@@ -967,4 +967,111 @@ section h2 {
     color: #6c757d;
     cursor: not-allowed;
     transform: none;
+}
+
+/* Cloud Sync Modal Styles */
+#cloudSyncModal .modal-content {
+    max-width: 600px;
+    padding: 30px;
+}
+
+#cloudSyncModal h2 {
+    color: #6366f1;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#cloudSyncModal p {
+    color: #666;
+    margin-bottom: 25px;
+    line-height: 1.5;
+}
+
+.sync-options {
+    display: grid;
+    gap: 20px;
+    margin: 25px 0;
+}
+
+.option-card {
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 20px;
+    transition: all 0.3s ease;
+}
+
+.option-card:hover {
+    border-color: #6366f1;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.1);
+}
+
+.option-card h3 {
+    margin: 0 0 10px 0;
+    color: #333;
+    font-size: 1.1rem;
+}
+
+.option-card p {
+    margin: 0 0 15px 0;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.option-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: #666;
+}
+
+.sync-benefits {
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 20px 0;
+}
+
+.sync-benefits h4 {
+    margin: 0 0 15px 0;
+    color: #0369a1;
+}
+
+.sync-benefits ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.sync-benefits li {
+    margin-bottom: 8px;
+    color: #0369a1;
+    line-height: 1.4;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    #cloudSyncModal .modal-content {
+        max-width: 90%;
+        padding: 20px;
+    }
+    
+    .sync-options {
+        gap: 15px;
+    }
+    
+    .option-card {
+        padding: 15px;
+    }
+    
+    .modal-actions {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .modal-actions button {
+        width: 100%;
+    }
 } 

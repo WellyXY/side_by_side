@@ -18,34 +18,57 @@
             </nav>
         </header>
 
-        <!-- GitHub Settings Modal -->
-        <div id="githubModal" class="modal" style="display: none;">
+        <!-- Cloud Sync Settings Modal -->
+        <div id="cloudSyncModal" class="modal" style="display: none;">
             <div class="modal-content">
-                <h2>📁 GitHub Data Sync Settings</h2>
-                <p>Enable GitHub synchronization to share experiment data across all users.</p>
+                <h2>☁️ 云端同步设置</h2>
+                <p>配置云端同步，让评价结果公开可见，所有用户都能查看统计数据。</p>
                 
-                <div class="form-group">
-                    <label for="githubToken">GitHub Personal Access Token:</label>
-                    <input type="password" id="githubToken" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" />
-                    <small>
-                        Need a token? 
-                        <a href="https://github.com/settings/tokens" target="_blank">Create one here</a>
-                        (需要 'repo' 权限)
-                    </small>
-                </div>
-                
-                <div class="sync-status">
-                    <div id="syncStatus" class="status-indicator">
-                        <span class="status-dot offline"></span>
-                        <span>Not connected to GitHub</span>
+                <div class="sync-options">
+                    <div class="option-card">
+                        <h3>🔒 本地存储模式（当前）</h3>
+                        <p>数据只保存在本地浏览器中，不会同步到云端。</p>
+                        <div class="option-status">
+                            <span class="status-dot" id="localStatus">●</span>
+                            <span>当前活动模式</span>
+                        </div>
+                    </div>
+                    
+                    <div class="option-card">
+                        <h3>☁️ 云端同步模式</h3>
+                        <p>评价数据自动同步到GitHub，公开展示统计结果。</p>
+                        <div class="form-group">
+                            <label for="cloudGithubToken">GitHub Personal Access Token:</label>
+                            <input type="password" id="cloudGithubToken" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" />
+                            <small>
+                                需要GitHub token来同步数据。
+                                <a href="https://github.com/settings/tokens" target="_blank">创建Token</a>
+                                (需要 'repo' 权限)
+                            </small>
+                        </div>
+                        <div class="option-status">
+                            <span class="status-dot" id="cloudStatus">●</span>
+                            <span id="cloudStatusText">未配置</span>
+                        </div>
                     </div>
                 </div>
                 
+                <div class="sync-benefits">
+                    <h4>☁️ 云端同步的好处：</h4>
+                    <ul>
+                        <li>📊 公共结果页面：所有用户都能查看评价统计</li>
+                        <li>🔄 实时同步：评价完成后自动上传到云端</li>
+                        <li>👥 多用户协作：不同用户的评价数据自动汇总</li>
+                        <li>📈 可视化图表：饼图、统计数据等公开展示</li>
+                        <li>🌐 跨设备访问：在任何设备上都能查看结果</li>
+                    </ul>
+                </div>
+                
                 <div class="modal-actions">
-                    <button id="testConnection" class="test-btn">Test Connection</button>
-                    <button id="forceSyncNow" class="sync-btn">🔄 Force Sync Now</button>
-                    <button id="saveGithubSettings" class="save-btn">Save & Enable Sync</button>
-                    <button id="cancelGithubSettings" class="cancel-btn">Cancel</button>
+                    <button id="enableCloudSync" class="save-btn">启用云端同步</button>
+                    <button id="disableCloudSync" class="test-btn">禁用云端同步</button>
+                    <button id="testCloudSync" class="sync-btn">🔄 测试同步</button>
+                    <button id="cancelCloudSync" class="cancel-btn">取消</button>
                 </div>
             </div>
         </div>
@@ -69,10 +92,10 @@
                     </div>
                     
                     <div class="action-card sync-card">
-                        <div class="card-icon">⚙️</div>
-                        <h3>GitHub Sync</h3>
-                        <p>Configure data synchronization across users</p>
-                        <button id="githubSettings" class="action-btn sync-btn">Configure Sync</button>
+                        <div class="card-icon">☁️</div>
+                        <h3>Cloud Sync</h3>
+                        <p>Configure cloud synchronization to share results publicly</p>
+                        <button onclick="showCloudSyncModal()" class="action-btn sync-btn">Configure Cloud Sync</button>
                     </div>
                 </div>
             </section>
@@ -123,6 +146,7 @@
     </div>
 
     <script>
+        document.write(`<script src="cloud-sync.js?v=${new Date().getTime()}"><\/script>`);
         document.write(`<script src="auto-config.js?v=${new Date().getTime()}"><\/script>`);
         document.write(`<script src="experiment-manager.js?v=${new Date().getTime()}"><\/script>`);
     </script>

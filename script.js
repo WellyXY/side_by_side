@@ -993,6 +993,16 @@ class VideoComparison {
             this.currentRound.completed = true;
             this.currentRound.completedAt = new Date().toISOString();
             console.log('Round completed!');
+            
+            // 轮次完成时触发云端同步
+            if (window.cloudSyncManager) {
+                console.log('🔄 Triggering cloud sync after round completion');
+                setTimeout(() => {
+                    window.cloudSyncManager.syncToCloud().catch(error => {
+                        console.warn('Cloud sync failed:', error);
+                    });
+                }, 1000); // 延迟1秒，确保本地存储先完成
+            }
         }
         
         this.currentExperiment.lastModified = new Date().toISOString();
@@ -1015,37 +1025,34 @@ class VideoComparison {
         
         console.log("==> saveCurrentExperiment: Saving current experiment data...");
         try {
-            // The complete, latest data structure is assembled in memory.
-            // Now, we need to get the full, fresh dataset from GitHub,
-            // merge our single experiment's changes into it, and save it back.
+            // 使用本地存储模式来保持与 experiment-manager 的一致性
+            const localStorageKey = 'sbs_experiments';
+            const existingData = localStorage.getItem(localStorageKey);
+            let experiments = [];
             
-            const remoteData = await window.githubDataManager.loadData();
-            if (!remoteData) {
-                console.error("Could not load remote data. Aborting save.");
-                return;
+            if (existingData) {
+                try {
+                    experiments = JSON.parse(existingData);
+                } catch (error) {
+                    console.error('解析本地存储数据失败:', error);
+                    experiments = [];
+                }
             }
-
-            const experiments = remoteData.content.experiments || [];
+            
+            // 查找并更新当前实验
             const index = experiments.findIndex(exp => exp.id === this.currentExperiment.id);
-
             if (index >= 0) {
                 experiments[index] = this.currentExperiment;
+                console.log("==> saveCurrentExperiment: Updated existing experiment");
             } else {
                 experiments.push(this.currentExperiment);
+                console.log("==> saveCurrentExperiment: Added new experiment");
             }
             
-            const dataToSave = {
-                experiments: experiments,
-                lastUpdated: new Date().toISOString()
-            };
-
-            const success = await window.githubDataManager.saveData(dataToSave, 'Update evaluation results');
+            // 保存到本地存储
+            localStorage.setItem(localStorageKey, JSON.stringify(experiments));
+            console.log("==> saveCurrentExperiment: Successfully saved to localStorage");
             
-            if (success) {
-                 console.log("==> saveCurrentExperiment: Successfully saved to GitHub.");
-            } else {
-                 console.error("==> saveCurrentExperiment: Failed to save to GitHub.");
-            }
         } catch (error) {
             console.error('Error in saveCurrentExperiment:', error);
         }
