@@ -64,6 +64,70 @@
             margin-bottom: 20px;
             text-align: center;
         }
+        
+        .folder-selection-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f3f4f6;
+        }
+        
+        .folder-selection-header h3 {
+            margin: 0;
+            color: #374151;
+            font-size: 1.3rem;
+        }
+        
+        .refresh-btn {
+            background: #6366f1;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+        
+        .refresh-btn:hover {
+            background: #5856eb;
+            transform: translateY(-1px);
+        }
+        
+        .refresh-btn:active {
+            transform: translateY(0);
+        }
+        
+        .refresh-btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .info-tip {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            background: #f0f9ff;
+            border: 1px solid #0ea5e9;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+        
+        .info-icon {
+            font-size: 1.2rem;
+            margin-top: 1px;
+        }
+        
+        .info-text {
+            color: #0c4a6e;
+            line-height: 1.4;
+        }
     </style>
 </head>
 <body>
@@ -97,13 +161,22 @@
                     </div>
 
                     <div class="folder-selection">
+                        <div class="folder-selection-header">
+                            <h3>Choose Video Folders</h3>
+                            <button id="refreshFolders" class="refresh-btn" type="button">🔄 Refresh Folders</button>
+                        </div>
+                        
+                        <div class="info-tip">
+                            <div class="info-icon">💡</div>
+                            <div class="info-text">
+                                <strong>提示：</strong>如果你刚创建了新文件夹或上传了视频，点击"刷新文件夹"按钮来更新文件夹列表。
+                            </div>
+                        </div>
+                        
                         <div class="folder-group">
                             <label>Folder A (Left Side):</label>
                             <select id="folderA">
-                                <option value="">Select folder...</option>
-                                <option value="Pika2.2">Pika2.2</option>
-                                <option value="Pika2.5">Pika2.5</option>
-                                <option value="Pika 2.2 DMD">Pika 2.2 DMD</option>
+                                <option value="">Loading folders...</option>
                             </select>
                             <div class="folder-info" id="folderAInfo"></div>
                         </div>
@@ -113,10 +186,7 @@
                         <div class="folder-group">
                             <label>Folder B (Right Side):</label>
                             <select id="folderB">
-                                <option value="">Select folder...</option>
-                                <option value="Pika2.2">Pika2.2</option>
-                                <option value="Pika2.5">Pika2.5</option>
-                                <option value="Pika 2.2 DMD">Pika 2.2 DMD</option>
+                                <option value="">Loading folders...</option>
                             </select>
                             <div class="folder-info" id="folderBInfo"></div>
                         </div>

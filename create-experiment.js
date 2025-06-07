@@ -33,6 +33,9 @@ class CreateExperimentManager {
         this.loadFolderFiles();
         this.bindEvents();
         this.validateForm();
+        
+        // 监听文件夹更新事件
+        this.listenForFolderUpdates();
     }
 
     ensureTokenConfiguration() {
@@ -57,23 +60,113 @@ class CreateExperimentManager {
     }
 
     async loadFolderFiles() {
-        const folders = ['Pika2.2', 'Pika2.5', 'Pika 2.2 DMD'];
+        console.log('📁 Loading all available folders...');
         
-        for (const folder of folders) {
+        // 1. 获取所有可用的文件夹（GitHub + 自定义）
+        const allFolders = await this.getAllAvailableFolders();
+        console.log('📂 Found folders:', allFolders);
+        
+        // 2. 为每个文件夹加载视频文件
+        for (const folder of allFolders) {
             try {
                 const files = await this.getVideoFiles(folder);
                 this.folderFiles[folder] = files;
-                console.log(`Loaded ${files.length} files from ${folder}`);
+                console.log(`✅ Loaded ${files.length} files from ${folder}`);
             } catch (error) {
-                console.error(`Error loading files from ${folder}:`, error);
+                console.error(`❌ Error loading files from ${folder}:`, error);
                 this.folderFiles[folder] = [];
             }
         }
+        
+        // 3. 更新文件夹选择下拉菜单
+        this.populateFolderOptions();
+    }
+
+    async getAllAvailableFolders() {
+        const folders = new Set();
+        
+        try {
+            // 1. 从GitHub API获取所有文件夹
+            console.log('🌐 Loading folders from GitHub...');
+            const response = await fetch('https://api.github.com/repos/WellyXY/side_by_side/contents/');
+            
+            if (response.ok) {
+                const contents = await response.json();
+                const githubFolders = contents
+                    .filter(item => item.type === 'dir' && 
+                            !item.name.startsWith('.') && 
+                            item.name !== 'data')
+                    .map(item => item.name);
+                
+                githubFolders.forEach(folder => folders.add(folder));
+                console.log('🌐 GitHub folders:', githubFolders);
+            }
+        } catch (error) {
+            console.warn('⚠️ Failed to load GitHub folders:', error);
+        }
+        
+        // 2. 加载自定义文件夹（从localStorage）
+        try {
+            const customFolders = JSON.parse(localStorage.getItem('custom_folders') || '[]');
+            customFolders.forEach(folder => {
+                if (folder.name) {
+                    folders.add(folder.name);
+                }
+            });
+            console.log('📁 Custom folders:', customFolders.map(f => f.name));
+        } catch (error) {
+            console.warn('⚠️ Failed to load custom folders:', error);
+        }
+        
+        // 3. 备用：硬编码的默认文件夹
+        const defaultFolders = ['Pika2.2', 'Pika2.5', 'Pika 2.2 DMD'];
+        defaultFolders.forEach(folder => folders.add(folder));
+        
+        const result = Array.from(folders).sort();
+        console.log(`📊 Total ${result.length} folders found:`, result);
+        return result;
+    }
+
+    populateFolderOptions() {
+        const folderASelect = document.getElementById('folderA');
+        const folderBSelect = document.getElementById('folderB');
+        
+        // 清空现有选项
+        folderASelect.innerHTML = '<option value="">Select folder...</option>';
+        folderBSelect.innerHTML = '<option value="">Select folder...</option>';
+        
+        // 添加所有可用文件夹
+        Object.keys(this.folderFiles).sort().forEach(folder => {
+            const fileCount = this.folderFiles[folder].length;
+            const optionText = `${folder} (${fileCount} files)`;
+            
+            const optionA = document.createElement('option');
+            optionA.value = folder;
+            optionA.textContent = optionText;
+            folderASelect.appendChild(optionA);
+            
+            const optionB = document.createElement('option');
+            optionB.value = folder;
+            optionB.textContent = optionText;
+            folderBSelect.appendChild(optionB);
+        });
+        
+        console.log(`✅ Populated folder options with ${Object.keys(this.folderFiles).length} folders`);
     }
 
     async getVideoFiles(folder) {
         try {
-            // 先尝试从 GitHub API 获取文件列表
+            // 1. 检查是否是自定义文件夹
+            const customFolders = JSON.parse(localStorage.getItem('custom_folders') || '[]');
+            const customFolder = customFolders.find(f => f.name === folder);
+            
+            if (customFolder) {
+                // 自定义文件夹，返回存储的文件列表
+                console.log(`📁 Loading custom folder: ${folder}`);
+                return customFolder.files || [];
+            }
+
+            // 2. 尝试从 GitHub API 获取文件列表
             const response = await fetch(
                 `https://api.github.com/repos/WellyXY/side_by_side/contents/${encodeURIComponent(folder)}`,
                 {
@@ -90,14 +183,14 @@ class CreateExperimentManager {
                     .filter(file => file.type === 'file' && file.name.toLowerCase().endsWith('.mp4'))
                     .map(file => file.name);
                 
-                console.log(`从 GitHub 加载了 ${videoFiles.length} 个视频文件从 ${folder}`);
+                console.log(`🌐 从 GitHub 加载了 ${videoFiles.length} 个视频文件从 ${folder}`);
                 return videoFiles;
             } else {
-                console.warn(`GitHub API 失败 (${response.status}), 尝试本地模式`);
+                console.warn(`⚠️ GitHub API 失败 (${response.status}), 尝试本地模式`);
                 return await this.getLocalVideoFiles(folder);
             }
         } catch (error) {
-            console.error(`从 ${folder} 加载文件时出错:`, error);
+            console.error(`❌ 从 ${folder} 加载文件时出错:`, error);
             return await this.getLocalVideoFiles(folder);
         }
     }
@@ -123,6 +216,9 @@ class CreateExperimentManager {
         document.getElementById('folderA').addEventListener('change', () => this.updateFolderInfo());
         document.getElementById('folderB').addEventListener('change', () => this.updateFolderInfo());
 
+        // Refresh folders button
+        document.getElementById('refreshFolders').addEventListener('click', () => this.refreshFolders());
+
         // Create experiment button
         document.getElementById('createExperiment').addEventListener('click', () => this.createExperiment());
 
@@ -134,6 +230,73 @@ class CreateExperimentManager {
         document.getElementById('viewExperiments').addEventListener('click', () => {
             window.location.href = 'experiment-manager.html';
         });
+    }
+
+    async refreshFolders() {
+        const refreshBtn = document.getElementById('refreshFolders');
+        const originalText = refreshBtn.textContent;
+        
+        try {
+            // 显示加载状态
+            refreshBtn.disabled = true;
+            refreshBtn.textContent = '🔄 Refreshing...';
+            
+            // 清空现有数据
+            this.folderFiles = {};
+            
+            // 重新加载文件夹
+            console.log('🔄 Manually refreshing folders...');
+            await this.loadFolderFiles();
+            
+            // 显示成功状态
+            refreshBtn.textContent = '✅ Refreshed!';
+            setTimeout(() => {
+                refreshBtn.textContent = originalText;
+                refreshBtn.disabled = false;
+            }, 1000);
+            
+        } catch (error) {
+            console.error('❌ Error refreshing folders:', error);
+            refreshBtn.textContent = '❌ Error';
+            setTimeout(() => {
+                refreshBtn.textContent = originalText;
+                refreshBtn.disabled = false;
+            }, 2000);
+        }
+    }
+
+    listenForFolderUpdates() {
+        // 监听localStorage变化（当有新文件夹创建或文件上传时）
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'folder_update_event') {
+                console.log('📢 Received folder update notification');
+                this.showMessage('📁 文件夹已更新，正在刷新列表...', 'info');
+                setTimeout(() => {
+                    this.refreshFolders();
+                }, 500);
+            }
+        });
+
+        // 也监听同一页面内的 localStorage 变化
+        let lastUpdateTime = 0;
+        setInterval(() => {
+            try {
+                const updateEvent = localStorage.getItem('folder_update_event');
+                if (updateEvent) {
+                    const event = JSON.parse(updateEvent);
+                    if (event.timestamp > lastUpdateTime) {
+                        lastUpdateTime = event.timestamp;
+                        console.log('📢 Detected folder update event');
+                        this.showMessage('📁 检测到文件夹更新，正在刷新...', 'info');
+                        setTimeout(() => {
+                            this.refreshFolders();
+                        }, 500);
+                    }
+                }
+            } catch (error) {
+                // 忽略解析错误
+            }
+        }, 2000); // 每2秒检查一次
     }
 
     updateFolderInfo() {

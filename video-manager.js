@@ -147,6 +147,9 @@ class VideoManager {
         const customFolders = this.folders.filter(f => f.isCustom);
         localStorage.setItem('custom_folders', JSON.stringify(customFolders));
 
+        // 发送更新通知
+        this.notifyFolderUpdate();
+
         // 重新渲染
         this.renderFolders();
         
@@ -326,6 +329,8 @@ class VideoManager {
 
                 if (index === files.length - 1) {
                     this.showMessage(`Successfully uploaded ${files.length} file(s) to ${folderName}!`, 'success');
+                    // 发送更新通知
+                    this.notifyFolderUpdate();
                 }
             }, (index + 1) * 1000); // 模拟上传延迟
         });
@@ -395,6 +400,16 @@ class VideoManager {
         setTimeout(() => {
             message.remove();
         }, 4000);
+    }
+
+    notifyFolderUpdate() {
+        // 发送文件夹更新通知
+        const updateEvent = {
+            type: 'folders_updated',
+            timestamp: Date.now()
+        };
+        localStorage.setItem('folder_update_event', JSON.stringify(updateEvent));
+        console.log('📢 Folder update notification sent');
     }
 }
 
