@@ -405,4 +405,222 @@ let videoManager;
 document.addEventListener('DOMContentLoaded', () => {
     videoManager = new VideoManager();
     videoManager.init();
-}); 
+});
+
+// 配置
+const CONFIG = {
+    // 优先使用本地文件
+    USE_LOCAL_FILES: true,
+    GITHUB_REPO: 'WellyXY/side_by_side',
+    // 本地文件路径
+    LOCAL_PATHS: {
+        'Pika2.2': './Pika2.2/',
+        'Pika2.5': './Pika2.5/', 
+        'Pika 2.2 DMD': './Pika 2.2 DMD/'
+    }
+};
+
+// 文件大小格式化
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// 获取本地文件列表
+async function getLocalFiles(folderName) {
+    const localPath = CONFIG.LOCAL_PATHS[folderName];
+    if (!localPath) return [];
+    
+    try {
+        // 首先尝试通过 JSON API 获取文件列表
+        const response = await fetch(localPath, {
+            headers: {
+                'Accept': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            const files = await response.json();
+            return files.map(file => ({
+                name: file.name,
+                path: file.url,
+                url: `http://localhost:8080${file.url}`,
+                size: formatFileSize(file.size),
+                folder: folderName
+            }));
+        }
+    } catch (error) {
+        console.warn(`无法通过 API 读取目录 ${localPath}:`, error);
+    }
+    
+    try {
+        // 尝试获取目录内容 (HTML 格式)
+        const response = await fetch(localPath);
+        if (response.ok) {
+            const text = await response.text();
+            const files = parseDirectoryListing(text, folderName);
+            return files;
+        }
+    } catch (error) {
+        console.warn(`无法读取本地目录 ${localPath}:`, error);
+    }
+    
+    // 如果无法动态读取，返回一个预定义的文件列表
+    return getStaticFileList(folderName);
+}
+
+// 解析目录列表 (用于简单的文件服务器)
+function parseDirectoryListing(html, folderName) {
+    const files = [];
+    const regex = /<a href="([^"]+\.mp4)"/gi;
+    let match;
+    
+    while ((match = regex.exec(html)) !== null) {
+        const fileName = match[1];
+        files.push({
+            name: fileName,
+            path: `${CONFIG.LOCAL_PATHS[folderName]}${fileName}`,
+            url: `${CONFIG.LOCAL_PATHS[folderName]}${fileName}`,
+            size: '未知',
+            folder: folderName
+        });
+    }
+    
+    return files;
+}
+
+// 静态文件列表 (当无法动态读取时使用)
+function getStaticFileList(folderName) {
+    const staticFiles = {
+        'Pika2.2': [
+            'a_beautiful_landscape.mp4',
+            'a_bustling_city_street.mp4',
+            'a_calm_ocean_view.mp4',
+            'a_colorful_garden.mp4',
+            'a_cozy_fireplace.mp4',
+            'a_flowing_river.mp4',
+            'a_majestic_mountain.mp4',
+            'a_peaceful_forest.mp4',
+            'a_serene_lake.mp4',
+            'a_stunning_sunset.mp4',
+            'a_vibrant_market.mp4',
+            'an_enchanted_castle.mp4',
+            'an_old_library.mp4',
+            'birds_flying_high.mp4',
+            'clouds_moving_fast.mp4',
+            'flowers_blooming.mp4',
+            'leaves_falling_down.mp4',
+            'rain_on_window.mp4',
+            'snow_falling_softly.mp4',
+            'waves_crashing_shore.mp4'
+        ],
+        'Pika2.5': [
+            'abstract_art_motion.mp4',
+            'autumn_leaves_dancing.mp4',
+            'butterfly_on_flower.mp4',
+            'cat_playing_yarn.mp4',
+            'children_laughing.mp4',
+            'coffee_steam_rising.mp4',
+            'dog_running_field.mp4',
+            'fire_crackling_night.mp4',
+            'fish_swimming_aquarium.mp4',
+            'fountain_water_dancing.mp4',
+            'guitar_strings_vibrating.mp4',
+            'hands_typing_keyboard.mp4',
+            'lightning_storm_clouds.mp4',
+            'music_notes_floating.mp4',
+            'paint_brush_strokes.mp4',
+            'paper_airplane_flying.mp4',
+            'pencil_drawing_lines.mp4',
+            'spider_web_dewdrops.mp4',
+            'steam_locomotive_moving.mp4',
+            'windmill_blades_turning.mp4'
+        ],
+        'Pika 2.2 DMD': [
+            'alien_spaceship_landing.mp4',
+            'ancient_ruins_mystery.mp4',
+            'crystal_cave_glowing.mp4',
+            'cyberpunk_city_neon.mp4',
+            'desert_mirage_shimmering.mp4',
+            'dragon_breathing_fire.mp4',
+            'fairy_forest_magical.mp4',
+            'future_car_hovering.mp4',
+            'galaxy_stars_spinning.mp4',
+            'ghost_town_eerie.mp4',
+            'ice_palace_frozen.mp4',
+            'jungle_vines_swinging.mp4',
+            'lava_flow_volcanic.mp4',
+            'mermaid_underwater_swimming.mp4',
+            'phoenix_rising_flames.mp4',
+            'pirate_ship_sailing.mp4',
+            'robot_dancing_disco.mp4',
+            'time_portal_swirling.mp4',
+            'underwater_coral_reef.mp4',
+            'wizard_casting_spell.mp4'
+        ]
+    };
+    
+    const fileList = staticFiles[folderName] || [];
+    return fileList.map(fileName => ({
+        name: fileName,
+        path: `${CONFIG.LOCAL_PATHS[folderName]}${fileName}`,
+        url: `${CONFIG.LOCAL_PATHS[folderName]}${fileName}`,
+        size: '未知',
+        folder: folderName
+    }));
+}
+
+// 修改主要的加载函数
+async function loadVideos() {
+    const loadingEl = document.getElementById('loading');
+    const errorEl = document.getElementById('error');
+    const videoListEl = document.getElementById('videoList');
+    
+    loadingEl.style.display = 'block';
+    errorEl.style.display = 'none';
+    videoListEl.innerHTML = '';
+    
+    try {
+        let allVideos = [];
+        
+        if (CONFIG.USE_LOCAL_FILES) {
+            console.log('使用本地文件模式');
+            // 使用本地文件
+            for (const folderName of Object.keys(CONFIG.LOCAL_PATHS)) {
+                const videos = await getLocalFiles(folderName);
+                allVideos = allVideos.concat(videos);
+            }
+        } else {
+            console.log('使用 GitHub API 模式');
+            // 使用 GitHub API (原有逻辑)
+            for (const folderName of ['Pika2.2', 'Pika2.5', 'Pika 2.2 DMD']) {
+                const videos = await getVideosFromFolder(folderName);
+                allVideos = allVideos.concat(videos);
+            }
+        }
+        
+        if (allVideos.length === 0) {
+            throw new Error('未找到任何视频文件');
+        }
+        
+        displayVideos(allVideos);
+        updateStats(allVideos);
+        
+    } catch (error) {
+        console.error('加载失败:', error);
+        errorEl.textContent = `加载失败: ${error.message}`;
+        errorEl.style.display = 'block';
+        
+        // 如果 GitHub API 失败，尝试切换到本地模式
+        if (!CONFIG.USE_LOCAL_FILES) {
+            console.log('GitHub API 失败，尝试切换到本地模式');
+            CONFIG.USE_LOCAL_FILES = true;
+            setTimeout(() => loadVideos(), 1000);
+        }
+    } finally {
+        loadingEl.style.display = 'none';
+    }
+} 
