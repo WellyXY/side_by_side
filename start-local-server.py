@@ -72,11 +72,27 @@ def start_server(port=8080, directory=None):
     print("- JSON API (添加 Accept: application/json 头)")
     print("\n按 Ctrl+C 停止服务器\n")
     
-    with socketserver.TCPServer(("", port), CORSHTTPRequestHandler) as httpd:
-        try:
-            httpd.serve_forever()
-        except KeyboardInterrupt:
-            print("\n服务器已停止")
+    try:
+        with socketserver.TCPServer(("", port), CORSHTTPRequestHandler) as httpd:
+            print(f"✅ 服务器启动成功，监听端口 {port}")
+            try:
+                httpd.serve_forever()
+            except KeyboardInterrupt:
+                print("\n\n🛑 收到停止信号，正在关闭服务器...")
+            except Exception as e:
+                print(f"\n❌ 服务器运行时出错: {e}")
+    except OSError as e:
+        if e.errno == 48:  # Address already in use
+            print(f"\n❌ 端口 {port} 已被占用，请尝试其他端口:")
+            print(f"   python3 start-local-server.py {port + 1}")
+        else:
+            print(f"\n❌ 无法启动服务器: {e}")
+        sys.exit(1)
+    except Exception as e:
+        print(f"\n❌ 启动服务器时发生错误: {e}")
+        sys.exit(1)
+    finally:
+        print("服务器已停止")
 
 if __name__ == "__main__":
     port = 8080

@@ -41,4 +41,4 @@ echo "按 Ctrl+C 停止服务器"
 echo "========================================"
 
 # 启动服务器
-python3 start-local-server.py $PORT 
+exec python3 start-local-server.py $PORT 
