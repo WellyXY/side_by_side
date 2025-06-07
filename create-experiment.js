@@ -3,7 +3,11 @@ class CreateExperimentManager {
         this.currentPairs = [];
         this.folderFiles = {};
         
-        // GitHub API 配置
+        // 配置：优先使用本地存储
+        this.useLocalStorage = true;
+        this.localStorageKey = 'sbs_experiments';
+        
+        // GitHub API 配置（作为备用）
         this.githubConfig = {
             owner: 'WellyXY',
             repo: 'side_by_side',
@@ -12,11 +16,14 @@ class CreateExperimentManager {
         };
         
         // 调试信息
+        console.log('🔧 CreateExperimentManager 配置:');
+        console.log('- 本地存储模式:', this.useLocalStorage ? '✅ 启用' : '❌ 禁用');
+        
         const token = localStorage.getItem('github_token');
         if (token) {
-            console.log('GitHub token loaded from localStorage:', token.substring(0, 10) + '...');
+            console.log('- GitHub token:', token.substring(0, 10) + '...');
         } else {
-            console.warn('No GitHub token found in localStorage');
+            console.log('- GitHub token: ❌ 未配置 (将使用本地存储)');
         }
     }
 
@@ -270,48 +277,82 @@ class CreateExperimentManager {
         try {
             console.log('🎬 Starting experiment creation:', experiment.name);
             
-            // 确保我们有最新的token
-            const currentToken = localStorage.getItem('github_token');
-            if (currentToken) {
-                this.githubConfig.token = currentToken;
-                console.log('🔄 Refreshed GitHub token before saving');
-            }
-            
-            // Load existing experiments from GitHub only
             let experiments = [];
-            if (this.githubConfig.token) {
-                console.log('📥 Loading existing experiments from GitHub...');
-                const githubExperiments = await this.loadExperimentsFromGitHub();
-                if (githubExperiments) {
-                    experiments = githubExperiments;
-                    console.log('✅ Successfully loaded existing experiments:', experiments.length, 'experiments');
+            
+            if (this.useLocalStorage) {
+                console.log('💾 使用本地存储模式');
+                
+                // 从本地存储加载现有实验
+                const existingData = localStorage.getItem(this.localStorageKey);
+                if (existingData) {
+                    try {
+                        experiments = JSON.parse(existingData);
+                        console.log('✅ 从本地存储加载了', experiments.length, '个现有实验');
+                    } catch (error) {
+                        console.warn('解析本地存储数据失败:', error);
+                        experiments = [];
+                    }
                 } else {
-                    console.log('⚠️ GitHub loading failed, using empty list');
+                    console.log('📝 本地存储为空，创建新的实验列表');
                     experiments = [];
                 }
-            } else {
-                console.error('❌ No GitHub token available');
-                throw new Error('GitHub token not configured. Cannot save experiment.');
-            }
-
-            // Add new experiment
-            experiments.push(experiment);
-            console.log('📝 Added new experiment, total count:', experiments.length);
-            
-            // Save to GitHub only
-            console.log('💾 Saving to GitHub...');
-            const saveResult = await this.saveExperimentsToGitHub(experiments);
-            
-            if (saveResult.success) {
-                console.log('✅ Experiment created successfully!');
-                this.showMessage('Experiment created successfully! Data saved to GitHub ✅', 'success');
                 
-                // Update local cache
-                localStorage.setItem('sbs_experiments', JSON.stringify(experiments));
+                // 添加新实验
+                experiments.push(experiment);
+                console.log('📝 添加新实验，总数:', experiments.length);
                 
+                // 保存到本地存储
+                localStorage.setItem(this.localStorageKey, JSON.stringify(experiments));
+                console.log('✅ 实验已保存到本地存储');
+                
+                this.showMessage('实验创建成功！数据已保存到本地存储 ✅', 'success');
                 this.showSuccessMessage();
+                
             } else {
-                throw new Error(`Failed to save to GitHub: ${saveResult.error || 'Unknown error'}`);
+                console.log('🌐 使用 GitHub API 模式');
+                
+                // 确保我们有最新的token
+                const currentToken = localStorage.getItem('github_token');
+                if (currentToken) {
+                    this.githubConfig.token = currentToken;
+                    console.log('🔄 Refreshed GitHub token before saving');
+                }
+                
+                // Load existing experiments from GitHub only
+                if (this.githubConfig.token) {
+                    console.log('📥 Loading existing experiments from GitHub...');
+                    const githubExperiments = await this.loadExperimentsFromGitHub();
+                    if (githubExperiments) {
+                        experiments = githubExperiments;
+                        console.log('✅ Successfully loaded existing experiments:', experiments.length, 'experiments');
+                    } else {
+                        console.log('⚠️ GitHub loading failed, using empty list');
+                        experiments = [];
+                    }
+                } else {
+                    console.error('❌ No GitHub token available');
+                    throw new Error('GitHub token not configured. Cannot save experiment.');
+                }
+
+                // Add new experiment
+                experiments.push(experiment);
+                console.log('📝 Added new experiment, total count:', experiments.length);
+                
+                // Save to GitHub only
+                console.log('💾 Saving to GitHub...');
+                const saveResult = await this.saveExperimentsToGitHub(experiments);
+                
+                if (saveResult.success) {
+                    console.log('✅ Experiment created successfully!');
+                    this.showMessage('Experiment created successfully! Data saved to GitHub ✅', 'success');
+                    
+                    // Update local cache
+                    localStorage.setItem(this.localStorageKey, JSON.stringify(experiments));
+                    
+                    this.showSuccessMessage();
+                } else {
+                    throw new Error(`Failed to save to GitHub: ${saveResult.error || 'Unknown error'}`);
+                }
             }
 
         } catch (error) {

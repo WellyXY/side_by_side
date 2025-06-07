@@ -71,7 +71,11 @@ class ExperimentManager {
         this.currentPairs = [];
         this.deleteTargetId = null;
         
-        // GitHub API 配置
+        // 配置：优先使用本地存储
+        this.useLocalStorage = true;
+        this.localStorageKey = 'sbs_experiments';
+        
+        // GitHub API 配置（作为备用）
         this.githubConfig = {
             owner: 'WellyXY',  // 你的 GitHub 用户名
             repo: 'side_by_side',  // 你的仓库名
@@ -79,6 +83,10 @@ class ExperimentManager {
             // 注意: 在生产环境中，应该使用环境变量或更安全的方式存储 token
             token: null  // 需要设置 GitHub Personal Access Token
         };
+        
+        // 调试信息
+        console.log('🔧 ExperimentManager 配置:');
+        console.log('- 本地存储模式:', this.useLocalStorage ? '✅ 启用' : '❌ 禁用');
     }
 
     init() {
@@ -838,29 +846,67 @@ class ExperimentManager {
     }
 
     async loadExperiments() {
-        this.showLoading('Loading experiments from GitHub...');
-        const data = await window.githubDataManager.loadData();
-        if (data && data.content && data.content.experiments) {
-            this.experiments = data.content.experiments;
-            this.renderExperiments();
-            this.updateStatistics();
+        if (this.useLocalStorage) {
+            console.log('💾 从本地存储加载实验');
+            try {
+                const data = localStorage.getItem(this.localStorageKey);
+                if (data) {
+                    this.experiments = JSON.parse(data);
+                    console.log('✅ 从本地存储加载了', this.experiments.length, '个实验');
+                } else {
+                    console.log('📝 本地存储为空，初始化为空数组');
+                    this.experiments = [];
+                }
+                this.renderExperiments();
+                this.updateStatistics();
+            } catch (error) {
+                console.error('解析本地存储数据失败:', error);
+                this.experiments = [];
+                this.renderExperiments();
+                this.updateStatistics();
+                this.showMessage('本地数据解析失败，已重置', 'warning');
+            }
         } else {
-            this.showMessage('Failed to load experiments.', 'error');
+            console.log('🌐 从 GitHub 加载实验');
+            this.showLoading('Loading experiments from GitHub...');
+            const data = await window.githubDataManager.loadData();
+            if (data && data.content && data.content.experiments) {
+                this.experiments = data.content.experiments;
+                this.renderExperiments();
+                this.updateStatistics();
+            } else {
+                this.showMessage('Failed to load experiments.', 'error');
+            }
+            this.hideLoading();
         }
-        this.hideLoading();
     }
 
     async saveExperiments() {
-        this.showLoading('Saving experiments to GitHub...');
-        const dataToSave = {
-            experiments: this.experiments,
-            lastUpdated: new Date().toISOString()
-        };
-        const success = await window.githubDataManager.saveData(dataToSave, 'Update experiments list');
-        if (!success) {
-            this.showMessage('Failed to save experiments to GitHub.', 'error');
+        if (this.useLocalStorage) {
+            console.log('💾 保存实验到本地存储');
+            try {
+                localStorage.setItem(this.localStorageKey, JSON.stringify(this.experiments));
+                console.log('✅ 成功保存', this.experiments.length, '个实验到本地存储');
+                return true;
+            } catch (error) {
+                console.error('保存到本地存储失败:', error);
+                this.showMessage('保存到本地存储失败', 'error');
+                return false;
+            }
+        } else {
+            console.log('🌐 保存实验到 GitHub');
+            this.showLoading('Saving experiments to GitHub...');
+            const dataToSave = {
+                experiments: this.experiments,
+                lastUpdated: new Date().toISOString()
+            };
+            const success = await window.githubDataManager.saveData(dataToSave, 'Update experiments list');
+            if (!success) {
+                this.showMessage('Failed to save experiments to GitHub.', 'error');
+            }
+            this.hideLoading();
+            return success;
         }
-        this.hideLoading();
     }
 
     showMessage(text, type = 'info') {
